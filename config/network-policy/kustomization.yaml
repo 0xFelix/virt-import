@@ -1,0 +1,4 @@
+resources:
+- ingress
+- deny-all.yaml
+- allow-controller-egress.yaml

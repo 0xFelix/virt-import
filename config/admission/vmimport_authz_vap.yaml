@@ -1,0 +1,45 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: vmimport-authz
+  labels:
+    app.kubernetes.io/name: virt-import
+    app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virt-import-vmimport-authz
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - import.kubevirt.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      resources:
+      - virtualmachineimports
+  variables:
+  - name: targetNS
+    expression: object.metadata.namespace
+  validations:
+  # The controller creates these on the user's behalf, so the requesting user
+  # must be allowed to create them directly. Imports are namespace-scoped:
+  # every resource lands in the namespace of the VirtualMachineImport.
+  - expression: >-
+      authorizer.group('cdi.kubevirt.io').resource('datavolumes').namespace(variables.targetNS).check('create').allowed()
+    messageExpression: >-
+      'User is not allowed to create DataVolumes in namespace ' + variables.targetNS
+    reason: Forbidden
+  # The target kind is only known after the artifact is inspected, so require
+  # permission for both possible targets up front.
+  - expression: >-
+      authorizer.group('kubevirt.io').resource('virtualmachines').namespace(variables.targetNS).check('create').allowed()
+    messageExpression: >-
+      'User is not allowed to create VirtualMachines in namespace ' + variables.targetNS
+    reason: Forbidden
+  - expression: >-
+      authorizer.group('template.kubevirt.io').resource('virtualmachinetemplates').namespace(variables.targetNS).check('create').allowed()
+    messageExpression: >-
+      'User is not allowed to create VirtualMachineTemplates in namespace ' + variables.targetNS
+    reason: Forbidden

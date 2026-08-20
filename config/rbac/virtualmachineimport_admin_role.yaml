@@ -1,0 +1,36 @@
+# This rule is not used by the project virt-import itself.
+# It is provided to allow the cluster admin to help manage permissions for users.
+#
+# Grants full permissions ('*') over import.kubevirt.io.
+# This role is intended for users authorized to modify roles and bindings within the cluster,
+# enabling them to delegate specific permissions to other users or groups as needed.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: virtualmachineimport-admin-role
+  labels:
+    app.kubernetes.io/name: virt-import
+    app.kubernetes.io/managed-by: kustomize
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    kubevirt.io: virt-import-virtualmachineimport-admin-role
+rules:
+- apiGroups:
+  - import.kubevirt.io
+  resources:
+  - virtualmachineimports
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - import.kubevirt.io
+  resources:
+  - virtualmachineimports/status
+  verbs:
+  - get

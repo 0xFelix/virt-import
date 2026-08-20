@@ -1,0 +1,31 @@
+# This rule is not used by the project virt-import itself.
+# It is provided to allow the cluster admin to help manage permissions for users.
+#
+# Grants read-only access to import.kubevirt.io resources.
+# This role is intended for users who need visibility into these resources
+# without permissions to modify them. It is ideal for monitoring purposes and limited-access viewing.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: virtualmachineimport-viewer-role
+  labels:
+    app.kubernetes.io/name: virt-import
+    app.kubernetes.io/managed-by: kustomize
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+    kubevirt.io: virt-import-virtualmachineimport-viewer-role
+rules:
+- apiGroups:
+  - import.kubevirt.io
+  resources:
+  - virtualmachineimports
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - import.kubevirt.io
+  resources:
+  - virtualmachineimports/status
+  verbs:
+  - get

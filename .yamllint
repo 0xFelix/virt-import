@@ -1,0 +1,12 @@
+extends: default
+
+ignore:
+  - config/crd/testing/
+
+rules:
+  line-length:
+    max: 165
+  indentation: disable
+  document-start: disable
+  comments: disable
+  comments-indentation: disable

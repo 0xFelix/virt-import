@@ -1,0 +1,18 @@
+apiVersion: import.kubevirt.io/v1alpha1
+kind: VirtualMachineImport
+metadata:
+  name: virtualmachineimport-sample
+  labels:
+    app.kubernetes.io/name: virt-import
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  source:
+    registry:
+      url: docker://registry.example.com/vms/fedora:v1
+      # secretRef: registry-credentials
+      # certConfigMap: registry-ca
+      # platform:
+      #   architecture: amd64
+  # targetName defaults to the VirtualMachineImport name
+  targetName: fedora-vm
+  # storageClassName: ceph-block

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# This component contains the metrics deployment patches used by config/default.
+
+patches:
+# [METRICS] The following patch will enable the metrics endpoint using HTTPS and the port :8443.
+# More info: https://book.kubebuilder.io/reference/metrics
+- path: manager_metrics_patch.yaml
+  target:
+    kind: Deployment
+    name: controller
+
+# [METRICS-WITH-CERTS] Enable metrics protected with certificates.
+- path: cert_metrics_manager_patch.yaml
+  target:
+    kind: Deployment
+    name: controller
