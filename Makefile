@@ -196,7 +196,7 @@ undeploy: ## Undeploy controller from the K8s cluster. Call with ignore-not-foun
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 
-CERT_MANAGER_VERSION ?= v1.20.0
+CERT_MANAGER_VERSION ?= v1.21.2
 .PHONY: deploy-cert-manager
 deploy-cert-manager:
 	$(KUBECTL) apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml"
