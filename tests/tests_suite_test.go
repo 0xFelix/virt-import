@@ -31,9 +31,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"kubevirt.io/client-go/kubecli"
+	kubevirtclient "kubevirt.io/client-go/kubevirt"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 
 	importclient "kubevirt.io/virt-import-client-go/virtimport"
@@ -44,7 +45,8 @@ const (
 )
 
 var (
-	virtClient   kubecli.KubevirtClient
+	kubeClient   kubernetes.Interface
+	virtClient   kubevirtclient.Interface
 	importClient importclient.Interface
 
 	afterSuiteReporters []Reporter
@@ -59,10 +61,13 @@ var _ = BeforeSuite(func() {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	virtClient, err = kubecli.GetKubevirtClientFromRESTConfig(config)
+	kubeClient, err = kubernetes.NewForConfig(config)
 	Expect(err).NotTo(HaveOccurred())
 
-	importClient, err = importclient.NewForConfig(virtClient.Config())
+	virtClient, err = kubevirtclient.NewForConfig(config)
+	Expect(err).NotTo(HaveOccurred())
+
+	importClient, err = importclient.NewForConfig(config)
 	Expect(err).NotTo(HaveOccurred())
 
 	namespaceTest := &corev1.Namespace{
@@ -70,12 +75,12 @@ var _ = BeforeSuite(func() {
 			Name: NamespaceTest,
 		},
 	}
-	_, err = virtClient.CoreV1().Namespaces().Create(context.Background(), namespaceTest, metav1.CreateOptions{})
+	_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), namespaceTest, metav1.CreateOptions{})
 	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
-	Expect(virtClient.CoreV1().Namespaces().Delete(context.Background(), NamespaceTest, metav1.DeleteOptions{})).To(Succeed())
+	Expect(kubeClient.CoreV1().Namespaces().Delete(context.Background(), NamespaceTest, metav1.DeleteOptions{})).To(Succeed())
 })
 
 var _ = ReportAfterSuite("TestFunctional", func(report Report) {

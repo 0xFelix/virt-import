@@ -161,12 +161,13 @@ func isAPIGroupAvailable(dc discovery.DiscoveryInterface, groupVersion string) b
 // ExternalCRDCacheConfig builds the manager's cache configuration for CRDs that
 // may not be installed. Entries are only added for groups that actually exist,
 // since a cache.ByObject for a missing CRD fails manager construction.
-func ExternalCRDCacheConfig(dc discovery.DiscoveryInterface) (map[client.Object]cache.ByObject, []client.Object) {
+func ExternalCRDCacheConfig(
+	dc discovery.DiscoveryInterface,
+) (cacheByObject map[client.Object]cache.ByObject, clientDisableFor []client.Object) {
 	uidReq, _ := labels.NewRequirement(v1alpha1.LabelImportUID, selection.Exists, nil)
 	uidSelector := labels.NewSelector().Add(*uidReq)
 
-	cacheByObject := map[client.Object]cache.ByObject{}
-	var clientDisableFor []client.Object
+	cacheByObject = map[client.Object]cache.ByObject{}
 
 	// Only cache DataVolumes this controller created, not every DataVolume in the cluster.
 	if isAPIGroupAvailable(dc, cdiGroupVersion) {
