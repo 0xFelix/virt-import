@@ -163,7 +163,7 @@ func startManager(cfg *rest.Config) ctrl.Manager {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	mgrCtx, mgrCancel := context.WithCancel(ctx) //nolint:gosec
+	mgrCtx, mgrCancel := context.WithCancel(ctx)
 	DeferCleanup(mgrCancel)
 	go func() {
 		defer GinkgoRecover()
