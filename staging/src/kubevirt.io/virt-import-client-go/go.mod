@@ -1,6 +1,6 @@
 module kubevirt.io/virt-import-client-go
 
-go 1.24.0
+go 1.26.0
 
 require (
 	k8s.io/apimachinery v0.34.3
