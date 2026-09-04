@@ -31,6 +31,10 @@ _kubevirtcicli="${_base_dir}/_kubevirt/kubevirtci/cluster-up/cli.sh"
 _action=$1
 shift
 
+source "${_base_dir}/hack/cdi.sh"
+KUBEVIRT_DEPLOY_CDI="$(cdi::deploy_bundled)"
+export KUBEVIRT_DEPLOY_CDI
+
 function kubevirt::fetch_kubevirt() {
   if [[ ! -d ${_kubevirt_dir} ]]; then
     git clone --depth 1 --branch "${KUBEVIRT_TAG}" https://github.com/kubevirt/kubevirt.git "${_kubevirt_dir}"
@@ -41,6 +45,9 @@ function kubevirt::up() {
   make cluster-up -C "${_kubevirt_dir}" && make cluster-sync -C "${_kubevirt_dir}"
   KUBECONFIG=$(kubevirt::kubeconfig)
   export KUBECONFIG
+
+  # KubeVirt only patches insecureRegistries when it deploys CDI itself, so do it here.
+  cdi::deploy "${_kubectl}"
 
   # Get the default storage class to patch vmStateStorageClass
   DEFAULT_STORAGE_CLASS=$(${_kubectl} get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')

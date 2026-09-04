@@ -151,6 +151,22 @@ make cluster-down
 
 `kubevirt-up` / `-sync` / `-functest` / `-down` do the same against KubeVirt built from git.
 
+Both `up` paths install the CDI bundled with kubevirtci. Set `CDI_VERSION` to install a
+different one instead - useful while virt-import depends on CDI features that are merged but
+not yet in a kubevirtci release:
+
+```
+CDI_VERSION=v1.65.0  make cluster-up   # a release tag, from the GitHub release assets
+CDI_VERSION=20260903 make cluster-up   # a nightly date, from the kubevirt-prow bucket
+CDI_VERSION=nightly  make cluster-up   # the most recent nightly
+```
+
+`hack/cdi.sh` resolves the value to a manifest base URL (failing before cluster-up if it is
+unusable), turns off `KUBEVIRT_DEPLOY_CDI` so kubevirtci does not install a CDI we are about to
+replace, applies `cdi-operator.yaml` and `cdi-cr.yaml`, and waits for the CDI CR. It also owns
+the `insecureRegistries: [registry:5000]` patch for both paths - KubeVirt's `cluster-deploy.sh`
+applies that patch only when it deploys CDI itself.
+
 ## Testing
 
 Ginkgo v2 + Gomega throughout, `envtest` for controller suites.

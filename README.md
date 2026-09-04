@@ -132,6 +132,13 @@ $ make cluster-functest
 $ make cluster-down
 ```
 
+`CDI_VERSION` installs a specific CDI instead of the one bundled with kubevirtci - a release
+tag (`v1.65.0`), a nightly date (`20260903`), or `nightly` for the most recent one:
+
+```console
+$ CDI_VERSION=nightly make cluster-up
+```
+
 See [AGENTS.md](AGENTS.md) for architecture, the module layout, and the reasoning behind how this
 repo differs from [kubevirt/virt-template](https://github.com/kubevirt/virt-template), which it was
 scaffolded from.

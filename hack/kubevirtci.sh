@@ -20,7 +20,6 @@
 set -ex
 
 export KUBEVIRT_MEMORY_SIZE="${KUBEVIRT_MEMORY_SIZE:-16G}"
-export KUBEVIRT_DEPLOY_CDI="true"
 export KUBEVIRT_STORAGE="${KUBEVIRT_STORAGE:-rook-ceph-default}"
 export KUBEVIRT_VERSION=${KUBEVIRT_VERSION:-$(curl -L https://storage.googleapis.com/kubevirt-prow/devel/release/kubevirt/kubevirt/stable.txt)}
 export KUBEVIRTCI_TAG=${KUBEVIRTCI_TAG:-$(curl -sfL https://raw.githubusercontent.com/kubevirt/kubevirt/"${KUBEVIRT_VERSION}"/kubevirtci/cluster-up/version.txt)}
@@ -33,6 +32,10 @@ _kubevirtcicli="${_cluster_up_dir}/cluster-up/cli.sh"
 _action=$1
 shift
 
+source "${_base_dir}/hack/cdi.sh"
+KUBEVIRT_DEPLOY_CDI="$(cdi::deploy_bundled)"
+export KUBEVIRT_DEPLOY_CDI
+
 function kubevirtci::fetch_kubevirtci() {
 	if [[ ! -d ${_cluster_up_dir} ]]; then
     git clone --depth 1 --branch "${KUBEVIRTCI_TAG}" https://github.com/kubevirt/kubevirtci.git "${_cluster_up_dir}"
@@ -44,8 +47,7 @@ function kubevirtci::up() {
   KUBECONFIG=$(kubevirtci::kubeconfig)
   export KUBECONFIG
 
-  echo "adding kubevirtci registry to cdi-insecure-registries"
-  ${_kubectl} patch cdis/cdi --type merge -p '{"spec": {"config": {"insecureRegistries": ["registry:5000"]}}}'
+  cdi::deploy "${_kubectl}"
 
   echo "installing kubevirt..."
   ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
