@@ -57,6 +57,9 @@ $ make build-installer
 $ kubectl apply -f dist/install.yaml
 ```
 
+For OLM, the controller image ships a `csv-generator`. The hyperconverged-cluster-operator runs it as
+the image entrypoint and merges the `ClusterServiceVersion` it prints. `make csv` prints it locally.
+
 ## Usage
 
 ```yaml

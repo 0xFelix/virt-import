@@ -1,0 +1,24 @@
+# Base for the ClusterServiceVersion consumed by HCO via cmd/csv-generator.
+#
+# Unlike config/default this overlay carries no metrics, cert-manager or
+# prometheus resources: a CSV can only express Deployments and RBAC, and
+# HCO discards everything else a component emits. Without the metrics
+# deployment patches the manager leaves --metrics-bind-address at its
+# default of "0" and serves no metrics, so it needs no serving certificate.
+
+# Adds namespace to all resources.
+namespace: kubevirt
+
+# Value of this field is prepended to the names of all resources.
+namePrefix: virt-import-
+
+resources:
+- ../crd
+- ../rbac
+- ../manager
+# [NETWORK POLICY] Emitted by csv-generator --dump-network-policies, not part of the CSV.
+- ../network-policy
+
+# Shared version annotation for the controller
+components:
+- ../components/version

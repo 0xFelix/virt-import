@@ -136,6 +136,8 @@ Go, podman or docker, kubectl. Build tools come from `tools/go.mod`, not your `$
 | `make generate` | deepcopy via controller-gen, clientset via `hack/generate.sh` |
 | `make vendor` | tidy all modules, `go work vendor`, vendor `tools/` |
 | `make build-installer` | `dist/install.yaml` (standalone, cert-manager) |
+| `make build-csv-manifests` | `_out/manifests.yaml`, the CSV input baked into the image |
+| `make csv` | print the ClusterServiceVersion, as HCO gets it |
 
 Run `make all` before pushing. It ends in `check-uncommitted`, which fails if generation produced a
 diff.
@@ -180,10 +182,27 @@ Ginkgo v2 + Gomega throughout, `envtest` for controller suites.
 
 ## Deployment
 
-Pure Kustomize, no Helm and no OLM bundle. One overlay:
+Kustomize for the standalone install, a generated `ClusterServiceVersion` for OLM. No Helm, no
+committed bundle.
 
-- `config/default` - namespace `kubevirt`, namePrefix `virt-import-`, cert-manager issues the metrics
-  cert.
+- `config/default` - cert-manager issues the metrics cert. Used by `make deploy` and
+  `dist/install.yaml`.
+- `config/csv` - the CSV base: CRD, RBAC, manager and network policies, no metrics or cert-manager.
+
+### csv-generator
+
+HCO runs the controller image with `--entrypoint=/csv-generator` (via the
+`org.kubevirt.hco.csv-generator.v1` label) and consumes its stdout; `make csv` prints it locally.
+
+`cmd/csv-generator` reads `/data/manifests.yaml` - the `config/csv` render baked in by
+`make build-csv-manifests` - and hoists the Deployment into the install strategy and the RBAC into
+`clusterPermissions`/`permissions` per service account, with metadata from the embedded
+`csv-base.yaml`. operator-sdk is unused: it cannot be a `go tool` (containers/image needs cgo and
+gpgme, `go tool` passes no build tags) and HCO discards the bundle scaffolding anyway.
+
+HCO keeps only the CSV and CRDs, and a CSV carries just Deployments and RBAC, so an HCO install gets
+no metrics Service, ServiceMonitor, NetworkPolicies or ValidatingAdmissionPolicy. Hence no metrics in
+the CSV: the manager leaves `--metrics-bind-address` at `0`, needing no cert and no cert-manager.
 
 ## Conventions
 

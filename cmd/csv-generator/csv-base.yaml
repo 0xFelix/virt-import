@@ -1,0 +1,58 @@
+# Static ClusterServiceVersion metadata for virt-import.
+#
+# The install strategy, permissions and owned CRD list are filled in by
+# csv-generator from the rendered config/csv; everything here is
+# hand-maintained source.
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: virt-import.v0.0.0
+  annotations:
+    capabilities: Basic Install
+    categories: OpenShift Optional
+    description: Imports virtual machines from OCI registries into KubeVirt.
+    repository: https://github.com/kubevirt/virt-import
+    support: KubeVirt
+spec:
+  displayName: VirtualMachineImport
+  description: |
+    virt-import imports virtual machines packaged as OCI artifacts into
+    KubeVirt. A VirtualMachineImport resolves the image manifest, creates one
+    DataVolume per disk layer for CDI to populate, and produces a
+    VirtualMachine referencing the imported disks.
+
+    virt-import never pulls disk content itself: registry credentials stay in
+    the metadata-fetch Job's Pod and in CDI's importer Pods.
+  keywords:
+    - KubeVirt
+    - Virtualization
+    - Import
+    - OCI
+  version: 0.0.0
+  maturity: alpha
+  minKubeVersion: 1.30.0
+  provider:
+    name: KubeVirt project
+    url: https://kubevirt.io
+  maintainers:
+    - name: KubeVirt project
+      email: kubevirt-dev@googlegroups.com
+  links:
+    - name: virt-import
+      url: https://github.com/kubevirt/virt-import
+  installModes:
+    - type: OwnNamespace
+      supported: true
+    - type: SingleNamespace
+      supported: true
+    - type: MultiNamespace
+      supported: false
+    - type: AllNamespaces
+      supported: true
+  customresourcedefinitions:
+    owned:
+      - name: virtualmachineimports.import.kubevirt.io
+        version: v1alpha1
+        kind: VirtualMachineImport
+        displayName: Virtual Machine Import
+        description: Imports a virtual machine from an OCI registry into KubeVirt.

@@ -2,6 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
 # This component contains the metrics deployment patches used by config/default.
+# config/csv deliberately omits it: the CSV carries no metrics.
 
 patches:
 # [METRICS] The following patch will enable the metrics endpoint using HTTPS and the port :8443.

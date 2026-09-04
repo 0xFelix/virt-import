@@ -2,6 +2,9 @@ VERSION ?= latest
 IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-import-controller:${VERSION}
+# VERSION defaults to 'latest', which is not a semantic version; the CSV needs one.
+CSV_VERSION ?= 0.0.0
+CSV_NAMESPACE ?= kubevirt
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -139,7 +142,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 container-build: container-build-controller ## Build container images.
 
 .PHONY: container-build-controller
-container-build-controller: ## Build container image with the controller.
+container-build-controller: build-csv-manifests ## Build container image with the controller.
 	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_CONTROLLER),Dockerfile)
 
 IMG_BUILD_ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
@@ -171,6 +174,23 @@ build-installer: manifests generate ## Generate a consolidated YAML with CRDs an
 	$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) > dist/install.yaml
 	hack/strip-namespace.sh dist/install.yaml
+
+.PHONY: build-csv-manifests
+build-csv-manifests: manifests generate ## Render the manifests csv-generator builds the CSV from.
+	@mkdir -p _out
+	@$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	@$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
+	@$(call go-tool,kustomize,build $(CURDIR)/config/csv) > _out/manifests.yaml
+
+.PHONY: csv
+csv: ## Print the ClusterServiceVersion, as HCO invokes csv-generator in the image.
+	@$(MAKE) --no-print-directory build-csv-manifests >/dev/null
+	@go run ./cmd/csv-generator \
+		--manifests-file=_out/manifests.yaml \
+		--csv-version=$(CSV_VERSION) \
+		--namespace=$(CSV_NAMESPACE) \
+		--operator-image=$(IMG_CONTROLLER) \
+		--operator-version=$(VERSION)
 
 ##@ Deployment
 
