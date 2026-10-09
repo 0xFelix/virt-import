@@ -3,6 +3,11 @@ IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-import-controller:${VERSION}
 IMG_FETCHER ?= ${IMG_REGISTRY}/virt-import-fetcher:${VERSION}
+# Temporary: CDI with DataVolume layer selection (kubevirt/containerized-data-importer#4301),
+# the commit go.mod replaces the CDI API with. Drop together with that replace.
+export CDI_VERSION ?= source
+export CDI_REPO ?= https://github.com/Acedus/containerized-data-importer
+export CDI_REF ?= defc3b3d6c7f19f02a72f4a1e378078fe8a2124b
 # VERSION defaults to 'latest', which is not a semantic version; the CSV needs one.
 CSV_VERSION ?= 0.0.0
 CSV_NAMESPACE ?= kubevirt
