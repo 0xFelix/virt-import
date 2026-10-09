@@ -48,11 +48,14 @@ api/core/v1alpha1/          VirtualMachineImport types (import.kubevirt.io/v1alp
 cmd/main.go                 controller manager entrypoint
 cmd/fetcher/                metadata-fetch Job entrypoint (placeholder, no-op for now)
 internal/controller/        reconciler + CRD availability gating
+internal/artifact/          OCI artifact format (VEP #256): validation, platform selection, fetch result, config rewrite
+internal/testing/artifacts/ builds VEP #256 artifacts for tests, and the fixtures
 internal/scheme/            runtime scheme registration
 internal/apimachinery/      GetStableName, DNS-1035-safe deterministic child names
 internal/logs/              log level constants
 config/                     Kustomize manifests, two overlays
 tests/                      functional tests (need KUBECONFIG)
+tests/artifacts/            generated oci-archive fixtures (`make generate`), generator in `generate/`
 ```
 
 ### Dependency on virt-template
@@ -144,7 +147,7 @@ Go, podman or docker, kubectl. Build tools come from `tools/go.mod`, not your `$
 | `make container-build` | controller and fetcher images (`container-build-controller`, `container-build-fetcher`) |
 | `make test` | unit + envtest suites |
 | `make manifests` | CRDs and RBAC via controller-gen |
-| `make generate` | deepcopy via controller-gen, clientset via `hack/generate.sh` |
+| `make generate` | deepcopy via controller-gen, clientset via `hack/generate.sh`, test artifact fixtures |
 | `make vendor` | tidy all modules, `go work vendor`, vendor `tools/` |
 | `make build-installer` | `dist/install.yaml` (standalone, cert-manager) |
 | `make build-csv-manifests` | `_out/manifests.yaml`, the CSV input baked into the image |

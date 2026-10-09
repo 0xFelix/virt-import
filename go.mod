@@ -5,13 +5,18 @@ go 1.26.3
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/go-logr/logr v1.4.4
+	github.com/klauspost/compress v1.19.0
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.43.1
+	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/operator-framework/api v0.45.0
 	k8s.io/api v0.37.0
 	k8s.io/apimachinery v0.37.0
 	k8s.io/client-go v0.37.0
 	k8s.io/component-base v0.37.0
+	k8s.io/utils v0.0.0-20260626114624-be93311217bd
+	kubevirt.io/api v1.9.0
 	kubevirt.io/client-go v1.9.0
 	kubevirt.io/containerized-data-importer-api v1.66.1
 	kubevirt.io/qe-tools v0.1.8
@@ -112,8 +117,6 @@ require (
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.31.0 // indirect
 	k8s.io/streaming v0.37.0 // indirect
-	k8s.io/utils v0.0.0-20260626114624-be93311217bd // indirect
-	kubevirt.io/api v1.9.0 // indirect
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.2.4 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.36.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
