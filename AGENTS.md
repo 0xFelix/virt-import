@@ -48,6 +48,7 @@ api/core/v1alpha1/          VirtualMachineImport types (import.kubevirt.io/v1alp
 cmd/main.go                 controller manager entrypoint
 cmd/fetcher/                metadata-fetch Job entrypoint (placeholder, no-op for now)
 internal/controller/        reconciler + CRD availability gating
+internal/artifact/          OCI artifact format (VEP #256): validation, platform selection, fetch result, config rewrite
 internal/scheme/            runtime scheme registration
 internal/apimachinery/      GetStableName, DNS-1035-safe deterministic child names
 internal/logs/              log level constants
