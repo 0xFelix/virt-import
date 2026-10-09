@@ -1,10 +1,11 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  creationTimestamp: null
   name: datavolumes.cdi.kubevirt.io
 spec:
-  conversion:
-    strategy: None
   group: cdi.kubevirt.io
   names:
     categories:
@@ -282,7 +283,7 @@ spec:
                       set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
                       exists.
                       More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
-                      (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.
+                      (Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).
                     type: string
                   volumeMode:
                     description: |-
@@ -294,6 +295,9 @@ spec:
                       backing this claim.
                     type: string
                 type: object
+              serviceAccountName:
+                description: ServiceAccountName for Importer and Uploader pod
+                type: string
               source:
                 description: Source is the src of the data for the requested DataVolume
                 properties:
@@ -325,12 +329,22 @@ spec:
                           a Certificate Authority(CA) public key, and a base64 encoded
                           pem certificate
                         type: string
+                      checksum:
+                        description: |-
+                          Checksum is the expected checksum of the file. Format: "algorithm:hash", e.g., "sha256:1234abcd..." or "md5:5678efgh..."
+                          Supported algorithms: md5, sha1, sha256, sha512
+                          If specified, the importer will verify the downloaded content matches this checksum
+                        type: string
                       extraHeaders:
                         description: ExtraHeaders is a list of strings containing
                           extra headers to include with HTTP transfer requests
                         items:
                           type: string
                         type: array
+                      insecureSkipVerify:
+                        description: InsecureSkipVerify is a flag to skip certificate
+                          verification for the HTTP endpoint
+                        type: boolean
                       secretExtraHeaders:
                         description: SecretExtraHeaders is a list of Secret references,
                           each containing an extra HTTP header that may include sensitive
@@ -360,6 +374,10 @@ spec:
                       diskId:
                         description: DiskID provides id of a disk to be imported
                         type: string
+                      insecureSkipVerify:
+                        description: InsecureSkipVerify is a flag to skip certificate
+                          verification
+                        type: boolean
                       secretRef:
                         description: SecretRef provides the secret reference needed
                           to access the ovirt-engine
@@ -396,6 +414,17 @@ spec:
                       imageStream:
                         description: ImageStream is the name of image stream for import
                         type: string
+                      layer:
+                        description: Layer selects a single OCI artifact layer to
+                          import as the disk image, not supported with the node pull
+                          method
+                        properties:
+                          matchAnnotations:
+                            additionalProperties:
+                              type: string
+                            description: MatchAnnotations the layer has to carry
+                            type: object
+                        type: object
                       platform:
                         description: Platform describes the minimum runtime requirements
                           of the image
@@ -462,6 +491,11 @@ spec:
                       backingFile:
                         description: BackingFile is the path to the virtual hard disk
                           to migrate from vCenter/ESXi
+                        type: string
+                      certConfigMap:
+                        description: CertConfigMap provides a reference to a ConfigMap
+                          containing the certificate authority (CA) certificate for
+                          the vCenter or ESXi host
                         type: string
                       extraArgs:
                         description: ExtraArgs is a reference to a ConfigMap containing
@@ -718,3 +752,9 @@ spec:
     storage: true
     subresources:
       status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null

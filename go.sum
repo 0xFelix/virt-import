@@ -291,6 +291,8 @@ git.sr.ht/~sbinet/gg v0.3.1/go.mod h1:KGYtlADtqsqANL9ueOFkWymvzUvLMQllU5Ixo+8v3p
 git.sr.ht/~sbinet/gg v0.5.0/go.mod h1:G2C0eRESqlKhS7ErsNey6HHrqU1PwsnCQlekFi9Q2Oo=
 git.sr.ht/~sbinet/gg v0.6.0/go.mod h1:uucygbfC9wVPQIfrmwM2et0imr8L7KQWywX0xpFMm94=
 git.wow.st/gmp/jni v0.0.0-20210610011705-34026c7e22d0/go.mod h1:+axXBRUTIDlCeE73IKeD/os7LoEnTKdkp8/gQOFjqyo=
+github.com/Acedus/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261001133435-defc3b3d6c7f h1:mz8fkAHaaEKLrfiQonFnVQULxdPKc7XtFYpjtuFLSLQ=
+github.com/Acedus/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261001133435-defc3b3d6c7f/go.mod h1:AqqZZCqWGpIbz5uViAivktJ6/YOp3VUiUDqs9kq8gls=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0/go.mod h1:I7kE2kM3qCr9QPT4cU4cCFYkEpVyVr16YOGUHzy+nR0=
@@ -2851,8 +2853,6 @@ kubevirt.io/api v1.9.0 h1:FWqx9yGk/GHUP5o4IthGXZ8FeAlgVNv2It48wD86UUo=
 kubevirt.io/api v1.9.0/go.mod h1:tFKAVaJMm7bXCMLxOoUdAqBprKAXoCa0sp0gBmnfBgY=
 kubevirt.io/client-go v1.9.0 h1:ksR37OV0Zft6g/9YPFEjevlkRpTvWuyVE44zj9xGuGQ=
 kubevirt.io/client-go v1.9.0/go.mod h1:cgGTWTqnghJdyiGXx4y9KXAHholmF2BwodUKXuQa9Ns=
-kubevirt.io/containerized-data-importer-api v1.66.1 h1:30b6xBXJPilLZykUabDjU0wV7rINlPTV2jySlye1P38=
-kubevirt.io/containerized-data-importer-api v1.66.1/go.mod h1:NKj7UdbTzu08JsBGeu3WxSu6qPZ4+w673Ha7Z55JvlA=
 kubevirt.io/controller-lifecycle-operator-sdk/api v0.2.4 h1:fZYvD3/Vnitfkx6IJxjLAk8ugnZQ7CXVYcRfkSKmuZY=
 kubevirt.io/controller-lifecycle-operator-sdk/api v0.2.4/go.mod h1:018lASpFYBsYN6XwmA2TIrPCx6e0gviTd/ZNtSitKgc=
 kubevirt.io/qe-tools v0.1.8 h1:Ar7qicmzHdd+Ia+6rjHDg3D7GReIyq7QFXoC4F7TjhQ=

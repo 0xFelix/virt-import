@@ -131,3 +131,7 @@ replace (
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20260819154853-08b0e4226688
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
 )
+
+// Temporary: DataVolumeSourceRegistry.Layer from kubevirt/containerized-data-importer#4301.
+// Drop once a CDI release contains it.
+replace kubevirt.io/containerized-data-importer-api => github.com/Acedus/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261001133435-defc3b3d6c7f

@@ -63,6 +63,15 @@ virt-import imports `kubevirt.io/virt-template-api` for the `VirtualMachineTempl
 RBAC marker on the reconciler, and in the admission policy. Do not "fix" those to
 `import.kubevirt.io`.
 
+### Temporary CDI API
+
+DataVolume layer selection (`spec.source.registry.layer`) comes from the unmerged
+[CDI #4301](https://github.com/kubevirt/containerized-data-importer/pull/4301). Until a CDI release
+contains it, `go.mod` replaces `kubevirt.io/containerized-data-importer-api` with that PR's commit on
+the author's fork, and `config/crd/testing/cdi.kubevirt.io_datavolumes.yaml` is the `datavolume` CRD
+extracted from `pkg/operator/resources/crds_generated.go` at the same commit. Re-pin both together;
+once released, drop the `replace`, bump to the release tag and re-extract the CRD from it.
+
 ## Controller Design
 
 ### VirtualMachineImport controller

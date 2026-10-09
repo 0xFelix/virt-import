@@ -1150,8 +1150,8 @@ kubevirt.io/client-go/kubevirt/typed/snapshot/v1alpha1
 kubevirt.io/client-go/kubevirt/typed/snapshot/v1beta1
 kubevirt.io/client-go/log
 kubevirt.io/client-go/subresources
-# kubevirt.io/containerized-data-importer-api v1.66.1
-## explicit; go 1.24.0
+# kubevirt.io/containerized-data-importer-api v1.66.1 => github.com/Acedus/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261001133435-defc3b3d6c7f
+## explicit; go 1.25.0
 kubevirt.io/containerized-data-importer-api/pkg/apis/core
 kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1
 # kubevirt.io/controller-lifecycle-operator-sdk/api v0.2.4
@@ -1252,3 +1252,4 @@ sigs.k8s.io/structured-merge-diff/v6/value
 sigs.k8s.io/yaml
 # google.golang.org/genproto => google.golang.org/genproto v0.0.0-20260819154853-08b0e4226688
 # k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
+# kubevirt.io/containerized-data-importer-api => github.com/Acedus/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261001133435-defc3b3d6c7f
