@@ -66,6 +66,15 @@ virt-import imports `kubevirt.io/virt-template-api` for the `VirtualMachineTempl
 RBAC marker on the reconciler, and in the admission policy. Do not "fix" those to
 `import.kubevirt.io`.
 
+### Temporary CDI API
+
+DataVolume layer selection (`spec.source.registry.layer`) comes from the unmerged
+[CDI #4301](https://github.com/kubevirt/containerized-data-importer/pull/4301). Until a CDI release
+contains it, `go.mod` replaces `kubevirt.io/containerized-data-importer-api` with that PR's commit on
+the author's fork, and the Makefile's `CDI_VERSION=source` default deploys CDI built from the same
+commit. Re-pin both together; once released, drop the `replace` and the CDI defaults and bump to
+the release tag.
+
 ## Controller Design
 
 ### VirtualMachineImport controller
@@ -158,18 +167,23 @@ make cluster-down
 
 `kubevirt-up` / `-sync` / `-functest` / `-down` do the same against KubeVirt built from git.
 
-Both `up` paths install the CDI bundled with kubevirtci. Set `CDI_VERSION` to install a
-different one instead - useful while virt-import depends on CDI features that are merged but
-not yet in a kubevirtci release:
+Without `CDI_VERSION` both `up` paths install the CDI bundled with kubevirtci. Set it to install a
+different one instead - useful while virt-import depends on CDI features that are not yet in a
+kubevirtci release:
 
 ```
 CDI_VERSION=v1.65.0  make cluster-up   # a release tag, from the GitHub release assets
 CDI_VERSION=20260903 make cluster-up   # a nightly date, from the kubevirt-prow bucket
 CDI_VERSION=nightly  make cluster-up   # the most recent nightly
+CDI_VERSION=source   make cluster-up   # built from CDI_REPO at CDI_REF, pushed to the cluster registry
 ```
 
-`hack/cdi.sh` resolves the value to a manifest base URL (failing before cluster-up if it is
-unusable), turns off `KUBEVIRT_DEPLOY_CDI` so kubevirtci does not install a CDI we are about to
+**Temporary defaults.** The Makefile defaults to `CDI_VERSION=source` with `CDI_REPO`/`CDI_REF` on
+the CDI #4301 commit `go.mod` replaces the CDI API with. Re-pin `CDI_REF` together with the `go.mod`
+replace; drop the defaults once CDI is released.
+
+`hack/cdi.sh` resolves the value to a manifest base (failing before cluster-up if it is
+unusable; for `source` the manifests CDI's `make manifests` renders into `_out/cdi-src`), turns off `KUBEVIRT_DEPLOY_CDI` so kubevirtci does not install a CDI we are about to
 replace, applies `cdi-operator.yaml` and `cdi-cr.yaml`, and waits for the CDI CR. It also owns
 the `insecureRegistries: [registry:5000]` patch for both paths - KubeVirt's `cluster-deploy.sh`
 applies that patch only when it deploys CDI itself.

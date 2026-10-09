@@ -47,7 +47,7 @@ function kubevirt::up() {
   export KUBECONFIG
 
   # KubeVirt only patches insecureRegistries when it deploys CDI itself, so do it here.
-  cdi::deploy "${_kubectl}"
+  cdi::deploy "${_kubectl}" "$(kubevirt::registry)"
 
   # Get the default storage class to patch vmStateStorageClass
   DEFAULT_STORAGE_CLASS=$(${_kubectl} get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
