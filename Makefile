@@ -52,9 +52,10 @@ manifests: ## Generate ClusterRole and CustomResourceDefinition objects.
 	$(call go-tool,controller-gen,rbac:roleName=manager-role crd paths=$(CONTROLLER_GEN_PATHS) output:crd:artifacts:config=$(CURDIR)/config/crd/bases)
 
 .PHONY: generate
-generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: ## Generate DeepCopy implementations, the clientset and the test artifacts.
 	$(call go-tool,controller-gen,object:headerFile="$(CURDIR)/hack/boilerplate.go.txt" paths=$(CONTROLLER_GEN_PATHS))
 	./hack/generate.sh
+	go run ./tests/artifacts/generate --out-dir=tests/artifacts
 
 .PHONY: fmt
 fmt: ## Run gofumpt against code.
