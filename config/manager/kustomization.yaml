@@ -6,3 +6,25 @@ images:
 - name: controller
   newName: quay.io/kubevirt/virt-import-controller
   newTag: latest
+# The fetcher image is not a container image of the manager, so the images
+# transformer cannot set it. This local-config ConfigMap carries it into the
+# FETCHER_IMAGE env var and is not part of the output.
+configMapGenerator:
+- literals:
+  - image=quay.io/kubevirt/virt-import-fetcher:latest
+  name: fetcher-image
+  options:
+    annotations:
+      config.kubernetes.io/local-config: "true"
+    disableNameSuffixHash: true
+replacements:
+- source:
+    fieldPath: data.image
+    kind: ConfigMap
+    name: fetcher-image
+  targets:
+  - fieldPaths:
+    - spec.template.spec.containers.[name=manager].env.[name=FETCHER_IMAGE].value
+    select:
+      kind: Deployment
+      name: controller
