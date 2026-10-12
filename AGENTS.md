@@ -47,10 +47,12 @@ run until they are created.
 api/core/v1alpha1/          VirtualMachineImport types (import.kubevirt.io/v1alpha1)
 cmd/main.go                 controller manager entrypoint
 cmd/fetcher/                metadata-fetch Job entrypoint, prints one {"fetchResult":...} line on stdout
+cmd/virtimportctl/          the virtimportctl CLI (create)
 internal/controller/        reconciler + CRD availability gating
 internal/artifact/          OCI artifact format (VEP #256): validation, platform selection, fetch result, config rewrite, fetcher flags and exit codes
   artifacttest/             builds VEP #256 artifacts and the fixtures for tests
 internal/fetcher/           reads and validates artifact metadata with containers/image (go.podman.io/image/v5)
+internal/virtimportctl/     virtimportctl, built from virtctl's modules (see below)
 internal/scheme/            runtime scheme registration
 internal/apimachinery/      GetStableName, DNS-1035-safe deterministic child names
 internal/logs/              log level constants
@@ -75,6 +77,18 @@ the author's fork, and the Makefile's `CDI_VERSION=source` default deploys CDI b
 commit. Re-pin both together and refresh the envtest CRDs with `make cluster-envtest-crds` or
 `make kubevirt-envtest-crds`; once released, drop the `replace` and the CDI defaults and bump to
 the release tag.
+
+### virtimportctl
+
+`internal/virtimportctl` is laid out like virtctl in kubevirt/kubevirt (`pkg/virtctl`), so it can
+move into `virtctl vmimport` later. `clientconfig/`, `templates/` and `testing/` are copies of
+virtctl's modules and must stay in sync with them: change them only where virt-import needs to
+(import paths, names). `root.go` is virtctl's `root.go` with virt-import's names and commands.
+
+`kubevirt.io/client-go/kubecli` cannot be imported while it does not support Kubernetes 0.37, so
+`internal/virtimportctl/kubecli` holds copies of the few kubecli functions the virtctl modules use.
+Replace its imports with the real kubecli once it does, and delete it. `create` gets its import
+client through `GetImportClient`, like virtctl's `template create`.
 
 ## Controller Design
 
@@ -152,7 +166,7 @@ tools come from `tools/go.mod`, not your `$PATH`.
 | Target | Purpose |
 |---|---|
 | `make all` | fmt, vet, vendor, lint, manifests, generate, check-uncommitted |
-| `make build` | build `bin/manager` and `bin/fetcher` |
+| `make build` | build `bin/manager`, `bin/fetcher` and `bin/virtimportctl` |
 | `make container-build` | controller and fetcher images (`container-build-controller`, `container-build-fetcher`) |
 | `make test` | unit + envtest suites |
 | `make manifests` | CRDs and RBAC via controller-gen |

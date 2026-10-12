@@ -155,9 +155,10 @@ kubevirt-envtest-crds: ## Pull the third-party CRDs envtest needs from the kubev
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager and fetcher binaries.
+build: manifests generate fmt vet ## Build manager, fetcher and virtimportctl binaries.
 	go build -o bin/manager cmd/main.go
 	go build -o bin/fetcher ./cmd/fetcher
+	go build -o bin/virtimportctl ./cmd/virtimportctl
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
