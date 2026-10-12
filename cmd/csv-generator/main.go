@@ -59,6 +59,7 @@ const (
 
 	csvNamePrefix = "virt-import.v"
 	managerName   = "manager"
+	envFetcherImg = "FETCHER_IMAGE"
 )
 
 type flags struct {
@@ -67,6 +68,7 @@ type flags struct {
 	replacesCsvVersion  string
 	namespace           string
 	operatorImage       string
+	fetcherImage        string
 	operatorVersion     string
 	pullPolicy          string
 	dumpCRDs            bool
@@ -125,6 +127,8 @@ func parseFlags() *flags {
 	flag.StringVar(&f.replacesCsvVersion, "replaces-csv-version", "", "CSV version this one replaces")
 	flag.StringVar(&f.namespace, "namespace", "", "namespace virt-import is deployed to (required)")
 	flag.StringVar(&f.operatorImage, "operator-image", "", "virt-import controller image (required)")
+	flag.StringVar(&f.fetcherImage, "fetcher-image", "",
+		"virt-import fetcher image, defaults to the "+envFetcherImg+" of the rendered manager")
 	flag.StringVar(&f.operatorVersion, "operator-version", "", "virt-import version")
 	flag.StringVar(&f.pullPolicy, "pull-policy", string(corev1.PullIfNotPresent), "image pull policy")
 	flag.BoolVar(&f.dumpCRDs, "dump-crds", false, "also dump the virt-import CRDs to stdout")
@@ -353,6 +357,10 @@ func buildCSV(f *flags, m *manifests) (*csvv1.ClusterServiceVersion, error) {
 
 	deployment := m.deployment.DeepCopy()
 	applyImage(deployment, f.operatorImage, corev1.PullPolicy(f.pullPolicy))
+	fetcherImage, err := applyFetcherImage(deployment, f.fetcherImage)
+	if err != nil {
+		return nil, err
+	}
 
 	csv.Spec.InstallStrategy = csvv1.NamedInstallStrategy{
 		StrategyName: csvv1.InstallStrategyNameDeployment,
@@ -367,10 +375,10 @@ func buildCSV(f *flags, m *manifests) (*csvv1.ClusterServiceVersion, error) {
 		},
 	}
 
-	csv.Spec.RelatedImages = []csvv1.RelatedImage{{
-		Name:  "virt-import-controller",
-		Image: f.operatorImage,
-	}}
+	csv.Spec.RelatedImages = []csvv1.RelatedImage{
+		{Name: "virt-import-controller", Image: f.operatorImage},
+		{Name: "virt-import-fetcher", Image: fetcherImage},
+	}
 
 	return csv, nil
 }
@@ -384,6 +392,27 @@ func applyImage(deployment *appsv1.Deployment, image string, pullPolicy corev1.P
 		containers[i].Image = image
 		containers[i].ImagePullPolicy = pullPolicy
 	}
+}
+
+// applyFetcherImage overrides FETCHER_IMAGE of the manager container unless image is empty, and
+// returns the image in effect.
+func applyFetcherImage(deployment *appsv1.Deployment, image string) (string, error) {
+	containers := deployment.Spec.Template.Spec.Containers
+	i := slices.IndexFunc(containers, func(c corev1.Container) bool { return c.Name == managerName })
+	if i < 0 {
+		return "", fmt.Errorf("the deployment has no %s container", managerName)
+	}
+	manager := &containers[i]
+
+	j := slices.IndexFunc(manager.Env, func(env corev1.EnvVar) bool { return env.Name == envFetcherImg })
+	if j < 0 {
+		return "", fmt.Errorf("the %s container has no %s", managerName, envFetcherImg)
+	}
+	if image != "" {
+		manager.Env[j].Value = image
+	}
+
+	return manager.Env[j].Value, nil
 }
 
 // marshalObject writes obj as YAML, stripping the empty scaffolding that
