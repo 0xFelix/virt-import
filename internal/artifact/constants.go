@@ -36,3 +36,23 @@ const (
 	// OS is the only OS the exporter writes and CDI selects.
 	OS = "linux"
 )
+
+// The command line of the fetcher, shared with the controller that builds its Job.
+const (
+	// ExitCodeFailed is for failures a retry may fix.
+	ExitCodeFailed = 1
+	// ExitCodeInvalidArtifact is for ErrInvalidArtifact, the Job fails without retrying.
+	ExitCodeInvalidArtifact = 2
+
+	// DockerScheme prefixes the registry URL, as in a DataVolume registry source.
+	DockerScheme = "docker://"
+
+	FlagURL            = "url"
+	FlagArch           = "arch"
+	FlagCertDir        = "cert-dir"
+	FlagInsecureTLS    = "insecure-tls"
+	FlagTerminationLog = "termination-log"
+
+	EnvAccessKeyID = "ACCESS_KEY_ID"
+	EnvSecretKey   = "SECRET_KEY"
+)
