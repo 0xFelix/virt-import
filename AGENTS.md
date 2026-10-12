@@ -46,10 +46,11 @@ run until they are created.
 ```
 api/core/v1alpha1/          VirtualMachineImport types (import.kubevirt.io/v1alpha1)
 cmd/main.go                 controller manager entrypoint
-cmd/fetcher/                metadata-fetch Job entrypoint (placeholder, no-op for now)
+cmd/fetcher/                metadata-fetch Job entrypoint, prints one {"fetchResult":...} line on stdout
 internal/controller/        reconciler + CRD availability gating
 internal/artifact/          OCI artifact format (VEP #256): validation, platform selection, fetch result, config rewrite
 internal/testing/artifacts/ builds VEP #256 artifacts for tests, and the fixtures
+internal/fetcher/           reads and validates artifact metadata with containers/image (go.podman.io/image/v5)
 internal/scheme/            runtime scheme registration
 internal/apimachinery/      GetStableName, DNS-1035-safe deterministic child names
 internal/logs/              log level constants

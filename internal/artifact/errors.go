@@ -23,3 +23,11 @@ import "errors"
 
 // ErrInvalidArtifact marks errors caused by the artifact itself. Retrying cannot fix them.
 var ErrInvalidArtifact = errors.New("invalid artifact")
+
+// Exit codes of the fetcher.
+const (
+	// ExitCodeFailed is any failure that a retry may fix, e.g. an unreachable registry.
+	ExitCodeFailed = 1
+	// ExitCodeInvalidArtifact means the fetch failed with ErrInvalidArtifact.
+	ExitCodeInvalidArtifact = 2
+)
