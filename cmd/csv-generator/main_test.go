@@ -22,9 +22,11 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -136,6 +138,9 @@ spec:
       - name: manager
         image: controller:latest
         args: ["--leader-elect"]
+        env:
+        - name: FETCHER_IMAGE
+          value: quay.io/kubevirt/virt-import-fetcher:latest
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -153,6 +158,21 @@ metadata:
   name: virt-import-controller-manager-metrics-service
 `
 
+const (
+	operatorImage        = "quay.io/kubevirt/virt-import-controller:v1.2.3"
+	keyImage             = "image"
+	renderedFetcherImage = "quay.io/kubevirt/virt-import-fetcher:latest"
+	fetcherImage         = "quay.io/kubevirt/virt-import-fetcher:v1.2.3"
+	fetcherImageName     = "virt-import-fetcher"
+)
+
+func withoutFetcherImage() string {
+	return strings.Replace(testManifests, `        env:
+        - name: FETCHER_IMAGE
+          value: `+renderedFetcherImage+`
+`, "", 1)
+}
+
 var _ = Describe("csv-generator", func() {
 	var manifestsFile string
 
@@ -166,7 +186,7 @@ var _ = Describe("csv-generator", func() {
 			manifestsFile: manifestsFile,
 			csvVersion:    "1.2.3",
 			namespace:     "kubevirt",
-			operatorImage: "quay.io/kubevirt/virt-import-controller:v1.2.3",
+			operatorImage: operatorImage,
 			pullPolicy:    string(corev1.PullAlways),
 		}
 	}
@@ -264,7 +284,7 @@ var _ = Describe("csv-generator", func() {
 
 			spec := deployments[0].(map[string]any)["spec"].(map[string]any)
 			container := spec["template"].(map[string]any)["spec"].(map[string]any)["containers"].([]any)[0]
-			Expect(container.(map[string]any)["image"]).To(Equal("quay.io/kubevirt/virt-import-controller:v1.2.3"))
+			Expect(container.(map[string]any)[keyImage]).To(Equal(operatorImage))
 			Expect(container.(map[string]any)["imagePullPolicy"]).To(Equal("Always"))
 		})
 
@@ -279,11 +299,48 @@ var _ = Describe("csv-generator", func() {
 			Expect(podSpec).NotTo(HaveKey("volumes"))
 		})
 
-		It("should record the controller image as a related image", func() {
+		It("should record the controller and fetcher images as related images", func() {
 			related := csv["spec"].(map[string]any)["relatedImages"].([]any)
-			Expect(related).To(HaveLen(1))
-			Expect(related[0].(map[string]any)["image"]).
-				To(Equal("quay.io/kubevirt/virt-import-controller:v1.2.3"))
+			Expect(related).To(ConsistOf(
+				HaveKeyWithValue(keyImage, operatorImage),
+				And(HaveKeyWithValue("name", fetcherImageName), HaveKeyWithValue(keyImage, renderedFetcherImage)),
+			))
+		})
+	})
+
+	Describe("the fetcher image", func() {
+		managerEnv := func(f *flags, manifests string) ([]corev1.EnvVar, []csvv1.RelatedImage, error) {
+			Expect(os.WriteFile(manifestsFile, []byte(manifests), 0o600)).To(Succeed())
+			m, err := readManifests(manifestsFile)
+			Expect(err).NotTo(HaveOccurred())
+			built, err := buildCSV(f, m)
+			if err != nil {
+				return nil, nil, err
+			}
+			spec := built.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec
+			return spec.Template.Spec.Containers[0].Env, built.Spec.RelatedImages, nil
+		}
+
+		It("should override the rendered image with --fetcher-image", func() {
+			f := validFlags()
+			f.fetcherImage = fetcherImage
+			env, related, err := managerEnv(f, testManifests)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(env).To(ConsistOf(corev1.EnvVar{Name: envFetcherImg, Value: fetcherImage}))
+			Expect(related).To(ContainElement(csvv1.RelatedImage{Name: fetcherImageName, Image: fetcherImage}))
+		})
+
+		It("should add FETCHER_IMAGE when the manifests lack it", func() {
+			f := validFlags()
+			f.fetcherImage = fetcherImage
+			env, _, err := managerEnv(f, withoutFetcherImage())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(env).To(ConsistOf(corev1.EnvVar{Name: envFetcherImg, Value: fetcherImage}))
+		})
+
+		It("should fail without any fetcher image", func() {
+			_, _, err := managerEnv(validFlags(), withoutFetcherImage())
+			Expect(err).To(MatchError(ContainSubstring("set --fetcher-image")))
 		})
 	})
 

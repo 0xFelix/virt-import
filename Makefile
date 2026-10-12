@@ -200,6 +200,7 @@ csv: ## Print the ClusterServiceVersion, as HCO invokes csv-generator in the ima
 		--csv-version=$(CSV_VERSION) \
 		--namespace=$(CSV_NAMESPACE) \
 		--operator-image=$(IMG_CONTROLLER) \
+		--fetcher-image=$(IMG_FETCHER) \
 		--operator-version=$(VERSION)
 
 ##@ Deployment

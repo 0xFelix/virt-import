@@ -218,7 +218,9 @@ HCO runs the controller image with `--entrypoint=/csv-generator` (via the
 `cmd/csv-generator` reads `/data/manifests.yaml` - the `config/csv` render baked in by
 `make build-csv-manifests` - and hoists the Deployment into the install strategy and the RBAC into
 `clusterPermissions`/`permissions` per service account, with metadata from the embedded
-`csv-base.yaml`. operator-sdk is unused: it cannot be a `go tool` (containers/image needs cgo and
+`csv-base.yaml`. `--operator-image` sets the manager image; `--fetcher-image` overrides the
+manager's `FETCHER_IMAGE` baked in at build time (optional, so an HCO that does not pass it yet keeps
+working). Both images are listed in `relatedImages`. operator-sdk is unused: it cannot be a `go tool` (containers/image needs cgo and
 gpgme, `go tool` passes no build tags) and HCO discards the bundle scaffolding anyway.
 
 HCO keeps only the CSV and CRDs, and a CSV carries just Deployments and RBAC, so an HCO install gets
