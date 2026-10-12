@@ -25,7 +25,10 @@ import (
 	"strings"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/discovery"
@@ -64,6 +67,8 @@ var requiredGroups = []string{
 type AvailabilityController struct {
 	Manager         ctrl.Manager
 	DiscoveryClient discovery.DiscoveryInterface
+	PodLogs         PodLogReader
+	FetcherImage    string
 
 	pollInterval time.Duration
 }
@@ -108,9 +113,15 @@ func (c *AvailabilityController) Start(ctx context.Context) error {
 
 func (c *AvailabilityController) startController(ctx context.Context) error {
 	logf.FromContext(ctx).Info("All required CRDs are available, starting controller")
+	// The reconciler reads the CDIConfig from the cache, but does not watch it.
+	if _, err := c.Manager.GetCache().GetInformer(ctx, &cdiv1beta1.CDIConfig{}); err != nil {
+		return fmt.Errorf("failed to add CDIConfig informer: %w", err)
+	}
 	return (&VirtualMachineImportReconciler{
-		Client: c.Manager.GetClient(),
-		Scheme: c.Manager.GetScheme(),
+		Client:       c.Manager.GetClient(),
+		Scheme:       c.Manager.GetScheme(),
+		PodLogs:      c.PodLogs,
+		FetcherImage: c.FetcherImage,
 	}).SetupWithManager(c.Manager)
 }
 
@@ -158,20 +169,29 @@ func isAPIGroupAvailable(dc discovery.DiscoveryInterface, groupVersion string) b
 	return err == nil
 }
 
-// ExternalCRDCacheConfig builds the manager's cache configuration for CRDs that
-// may not be installed. Entries are only added for groups that actually exist,
-// since a cache.ByObject for a missing CRD fails manager construction.
+// ExternalCRDCacheConfig builds the manager's cache configuration for the objects the
+// reconciler reads. Entries for CRDs that may not be installed are only added for groups
+// that actually exist, since a cache.ByObject for a missing CRD fails manager construction.
 func ExternalCRDCacheConfig(
 	dc discovery.DiscoveryInterface,
 ) (cacheByObject map[client.Object]cache.ByObject, clientDisableFor []client.Object) {
 	uidReq, _ := labels.NewRequirement(v1alpha1.LabelImportUID, selection.Exists, nil)
 	uidSelector := labels.NewSelector().Add(*uidReq)
 
-	cacheByObject = map[client.Object]cache.ByObject{}
+	// Only cache the children this controller created, not every object of their kind in the cluster.
+	cacheByObject = map[client.Object]cache.ByObject{
+		&batchv1.Job{}:      {Label: uidSelector},
+		&corev1.Pod{}:       {Label: uidSelector},
+		&corev1.ConfigMap{}: {Label: uidSelector},
+	}
+	// The imported PVCs are only read once, when an import completes.
+	clientDisableFor = append(clientDisableFor, &corev1.PersistentVolumeClaim{})
 
-	// Only cache DataVolumes this controller created, not every DataVolume in the cluster.
 	if isAPIGroupAvailable(dc, cdiGroupVersion) {
 		cacheByObject[&cdiv1beta1.DataVolume{}] = cache.ByObject{Label: uidSelector}
+		cacheByObject[&cdiv1beta1.CDIConfig{}] = cache.ByObject{
+			Field: fields.OneTermEqualSelector("metadata.name", cdiConfigName),
+		}
 	}
 	// VirtualMachineTemplates are a create-only import target. Read them
 	// straight from the API server so no informer is started for a CRD that

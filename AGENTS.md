@@ -17,9 +17,9 @@ deliverable of [VEP #395](https://github.com/kubevirt/enhancements/pull/396).
 The target kind is auto-detected from the OCI manifest's `artifactType`. Disk data is not fetched by
 this controller: it is delegated to CDI via `DataVolumes`.
 
-**Current state: scaffolding.** The `VirtualMachineImport` API and the controller wiring exist;
-`Reconcile` is a no-op. The import state machine (metadata-fetch Job, DataVolume creation, config
-blob rewriting, target creation, finalizer GC) is not implemented yet.
+**Current state: Alpha in progress.** The import pipeline is implemented: metadata-fetch Job,
+DataVolume creation, config blob rewriting, target creation and finalizer GC. Functional tests and
+the `virtimportctl` CLI are not there yet.
 
 ## Architecture
 
@@ -80,8 +80,13 @@ once released, drop the `replace`, bump to the release tag and re-extract the CR
 
 ### VirtualMachineImport controller
 
-`internal/controller/virtualmachineimport_controller.go`. Watches `VirtualMachineImport` and owns the
-`DataVolumes` it creates (`Owns(&cdiv1beta1.DataVolume{})`). `Reconcile` is currently a no-op.
+`internal/controller/virtualmachineimport_controller.go`. Owns the metadata-fetch `Job`, the manifest
+`ConfigMap` and the `DataVolumes` it creates, and maps the fetch Pods back by label. See
+[internal/controller/AGENTS.md](internal/controller/AGENTS.md) for the pipeline and its invariants.
+
+The manager needs the fetcher image (`--fetcher-image`, defaulting to `FETCHER_IMAGE`). The Makefile
+sets it through a local-config ConfigMap and a kustomize replacement in `config/manager`, since the
+images transformer only touches container images.
 
 ### CRD availability gating
 
@@ -98,9 +103,10 @@ unconditionally. `AvailabilityController` is a `manager.Runnable` that:
    `VirtualMachineImports`, so users see why nothing is happening instead of a crashlooping pod.
 
 `ExternalCRDCacheConfig(dc)` is its companion, consumed by `cmd/main.go` when building the manager.
-It label-scopes the DataVolume informer to `import.kubevirt.io/ImportUID` so the cache holds only
-DataVolumes this controller created, and puts `VirtualMachineTemplate` in `clientDisableFor` because
-it is a create-only target that must not start an informer for a possibly-absent CRD.
+It label-scopes the Job, Pod, ConfigMap and DataVolume informers to `import.kubevirt.io/ImportUID`
+so the cache holds only children this controller created, field-selects the single CDI `CDIConfig`
+named `config`, and reads PVCs and `VirtualMachineTemplate`s uncached. The CDIConfig informer is
+started by `startController` because nothing watches it.
 
 **If you add a second external watch**, extend `requiredGroups` and `ExternalCRDCacheConfig` - do not
 call `SetupWithManager` directly from `cmd/main.go`.

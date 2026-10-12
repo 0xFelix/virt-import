@@ -31,6 +31,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -53,6 +54,7 @@ func main() {
 	var metricsCertPath, metricsCertName, metricsCertKey string
 	var enableLeaderElection bool
 	var probeAddr string
+	var fetcherImage string
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var cipherSuites string
@@ -61,6 +63,8 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&fetcherImage, "fetcher-image", os.Getenv("FETCHER_IMAGE"),
+		"The image of the metadata-fetch Job. Defaults to the FETCHER_IMAGE environment variable.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -87,6 +91,11 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	if fetcherImage == "" {
+		setupLog.Error(nil, "The fetcher image is not set, use --fetcher-image or FETCHER_IMAGE")
+		os.Exit(1)
+	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -180,9 +189,17 @@ func main() {
 
 	// The availability controller registers VirtualMachineImportReconciler once
 	// the CRDs it watches (CDI DataVolumes) are present.
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "Failed to create Kubernetes client")
+		os.Exit(1)
+	}
+
 	if err := mgr.Add(&controller.AvailabilityController{
 		Manager:         mgr,
 		DiscoveryClient: discoveryClient,
+		PodLogs:         controller.NewPodLogReader(kubeClient),
+		FetcherImage:    fetcherImage,
 	}); err != nil {
 		setupLog.Error(err, "Failed to add availability controller")
 		os.Exit(1)

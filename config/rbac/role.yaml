@@ -7,13 +7,20 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims
   verbs:
   - get
-  - list
   - patch
-  - update
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -41,6 +48,14 @@ rules:
 - apiGroups:
   - cdi.kubevirt.io
   resources:
+  - cdiconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cdi.kubevirt.io
+  resources:
   - datavolumes
   verbs:
   - create
@@ -56,7 +71,6 @@ rules:
   - get
   - list
   - patch
-  - update
   - watch
 - apiGroups:
   - import.kubevirt.io
@@ -71,7 +85,6 @@ rules:
   verbs:
   - get
   - patch
-  - update
 - apiGroups:
   - kubevirt.io
   resources:
@@ -79,8 +92,6 @@ rules:
   verbs:
   - create
   - get
-  - list
-  - watch
 - apiGroups:
   - template.kubevirt.io
   resources:
@@ -88,5 +99,3 @@ rules:
   verbs:
   - create
   - get
-  - list
-  - watch

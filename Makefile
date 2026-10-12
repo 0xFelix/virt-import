@@ -179,6 +179,7 @@ endif
 build-installer: manifests generate ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
 	$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) > dist/install.yaml
 	hack/strip-namespace.sh dist/install.yaml
@@ -187,6 +188,7 @@ build-installer: manifests generate ## Generate a consolidated YAML with CRDs an
 build-csv-manifests: manifests generate ## Render the manifests csv-generator builds the CSV from.
 	@mkdir -p _out
 	@$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	@$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
 	@$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
 	@$(call go-tool,kustomize,build $(CURDIR)/config/csv) > _out/manifests.yaml
 
@@ -217,6 +219,7 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster. Call with ignore-no
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster.
 	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
