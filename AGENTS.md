@@ -46,6 +46,7 @@ run until they are created.
 ```
 api/core/v1alpha1/          VirtualMachineImport types (import.kubevirt.io/v1alpha1)
 cmd/main.go                 controller manager entrypoint
+cmd/fetcher/                metadata-fetch Job entrypoint (placeholder, no-op for now)
 internal/controller/        reconciler + CRD availability gating
 internal/scheme/            runtime scheme registration
 internal/apimachinery/      GetStableName, DNS-1035-safe deterministic child names
@@ -130,7 +131,8 @@ Go, podman or docker, kubectl. Build tools come from `tools/go.mod`, not your `$
 | Target | Purpose |
 |---|---|
 | `make all` | fmt, vet, vendor, lint, manifests, generate, check-uncommitted |
-| `make build` | build `bin/manager` |
+| `make build` | build `bin/manager` and `bin/fetcher` |
+| `make container-build` | controller and fetcher images (`container-build-controller`, `container-build-fetcher`) |
 | `make test` | unit + envtest suites |
 | `make manifests` | CRDs and RBAC via controller-gen |
 | `make generate` | deepcopy via controller-gen, clientset via `hack/generate.sh` |
@@ -212,7 +214,8 @@ the CSV: the manager leaves `--metrics-bind-address` at `0`, needing no cert and
 - Commits must be signed off (`git commit -s`)
 - PRs and issues must follow the GitHub templates in `.github/`. Always read the template before
   creating a PR or issue and fill in all sections.
-- Container image: `quay.io/kubevirt/virt-import-controller`
+- Container images: `quay.io/kubevirt/virt-import-controller` (`Dockerfile`) and
+  `quay.io/kubevirt/virt-import-fetcher` (`fetcher.Dockerfile`, runs in the metadata-fetch Job)
 - Multi-arch: linux/amd64, linux/arm64, linux/s390x
 - Generated client code lives in `staging/`
 - Logging levels: `V(1)` for debug, `V(2)` for trace

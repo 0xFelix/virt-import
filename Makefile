@@ -2,6 +2,7 @@ VERSION ?= latest
 IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-import-controller:${VERSION}
+IMG_FETCHER ?= ${IMG_REGISTRY}/virt-import-fetcher:${VERSION}
 # VERSION defaults to 'latest', which is not a semantic version; the CSV needs one.
 CSV_VERSION ?= 0.0.0
 CSV_NAMESPACE ?= kubevirt
@@ -131,19 +132,24 @@ kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate fmt vet ## Build manager and fetcher binaries.
 	go build -o bin/manager cmd/main.go
+	go build -o bin/fetcher ./cmd/fetcher
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
 .PHONY: container-build
-container-build: container-build-controller ## Build container images.
+container-build: container-build-controller container-build-fetcher ## Build container images.
 
 .PHONY: container-build-controller
 container-build-controller: build-csv-manifests ## Build container image with the controller.
 	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_CONTROLLER),Dockerfile)
+
+.PHONY: container-build-fetcher
+container-build-fetcher: ## Build container image with the fetcher.
+	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_FETCHER),fetcher.Dockerfile)
 
 IMG_BUILD_ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 DOCKER_BUILDER ?= virt-import-docker-builder
@@ -165,6 +171,7 @@ endif
 container-push: ## Push container images.
 ifeq ($(CONTAINER_TOOL),podman)
 	podman manifest push --tls-verify=$(TLS_VERIFY) ${IMG_CONTROLLER} ${IMG_CONTROLLER}
+	podman manifest push --tls-verify=$(TLS_VERIFY) ${IMG_FETCHER} ${IMG_FETCHER}
 endif
 
 .PHONY: build-installer
