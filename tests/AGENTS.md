@@ -29,4 +29,10 @@ virt-import deployed.
 - Specs labeled `KubeVirtExport` export with KubeVirt's OCI export and need a KubeVirt that
   annotates disk layers with the volume name; until a release does, they only pass on the
   `kubevirt-*` lane
+- VMs are created from imported `VirtualMachineTemplate`s through virt-template's `create` and
+  `process` subresources (`processTemplate`). Creating one in another namespace clones across
+  namespaces and needs `allowCloneFrom`; it is the only spec proving the DataVolumeTemplate
+  namespace rewrite, keep it
+- Fixture disks must stay above 512 bytes compressed (CDI's importer reads a fixed 512 byte
+  header) and template DataVolumeTemplates request at least 1Mi
 - Prefer `DescribeTable` with `Entry` for parameterized test cases

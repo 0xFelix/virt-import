@@ -13,17 +13,24 @@ Multi-step pipeline, every step derived from observed state so it survives resta
    succeeded Pod (matched by the Job selector and controlled by the Job), rewrite the config
    blob into the target and persist it in the manifest `ConfigMap` (keys `target` and
    `result`). The Job is deleted once the cache shows the ConfigMap, so a lagging cache never
-   starts a second fetch.
+   starts a second fetch. The controller creates the target with its own permissions, so the
+   hash of the ConfigMap data is patched into `status.manifestConfigMapHash` before the
+   ConfigMap is created, and the import fails if the data stops matching it or holds another
+   kind, name or namespace than the import creates.
    Exit code 2 / a failed Job is terminal. If the succeeded Pod or its logs are gone, the Job
-   is deleted and the fetch starts over
+   is deleted and the fetch starts over, at most `maxFetchRestarts` (3) times, counted in
+   `status.fetchRestarts` before the Job is deleted
 3. Create a `DataVolume` per disk: URL pinned to the fetched digest, `platform` only for an image
-   index, `layer.matchAnnotations` on `io.kubevirt.disk.name`, immediate binding
+   index, `layer.matchAnnotations` on `io.kubevirt.disk.name`, immediate binding, at least 1Mi
+   (CDI's webhook rejects smaller DataVolumes)
 4. Wait for all `DataVolume`s to succeed (event-driven requeue; no fixed interval), reporting
    the `Running` condition message of a stalled one in `Ready`
 5. Create the `VirtualMachine` or `VirtualMachineTemplate` from the manifest `ConfigMap`
 6. On the next reconcile (`handOver`): make the target the controller of the `DataVolume`s,
    like virt-template hands them over to the `VirtualMachineTemplate`, so they and their PVCs are
-   deleted with it, then delete the manifest `ConfigMap`. If the target is gone, the
+   deleted with it, then delete the manifest `ConfigMap`. The target is looked up by the target
+   name and `status.artifactInfo.artifactType`, never by the `ConfigMap`, so a changed
+   `ConfigMap` cannot get the `DataVolume`s deleted. If the target is gone, the
    `DataVolume`s are deleted. Handed-over `DataVolume`s keep the `ImportUID` label but are
    ignored. Once done, reconciling a completed import reads only the cache and writes nothing
 
