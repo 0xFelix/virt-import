@@ -136,7 +136,7 @@ Go, podman or docker, kubectl. Build tools come from `tools/go.mod`, not your `$
 | `make test` | unit + envtest suites |
 | `make manifests` | CRDs and RBAC via controller-gen |
 | `make generate` | deepcopy via controller-gen, clientset via `hack/generate.sh` |
-| `make vendor` | tidy all modules, `go work vendor`, vendor `tools/` |
+| `make vendor` | tidy all modules, `go work vendor`, full module graph checksums in `go.work.sum`, vendor `tools/` |
 | `make build-installer` | `dist/install.yaml` (standalone, cert-manager) |
 | `make build-csv-manifests` | `_out/manifests.yaml`, the CSV input baked into the image |
 | `make csv` | print the ClusterServiceVersion, as HCO gets it |
