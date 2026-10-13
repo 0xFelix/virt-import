@@ -17,7 +17,8 @@ Multi-step pipeline, every step derived from observed state so it survives resta
    Exit code 2 / a failed Job is terminal. If the succeeded Pod or its logs are gone, the Job
    is deleted and the fetch starts over
 3. Create a `DataVolume` per disk: URL pinned to the fetched digest, `platform` only for an image
-   index, `layer.matchAnnotations` on `io.kubevirt.disk.name`, immediate binding
+   index, `layer.matchAnnotations` on `io.kubevirt.disk.name`, immediate binding, at least 1Mi
+   (CDI's webhook rejects smaller DataVolumes)
 4. Wait for all `DataVolume`s to succeed (event-driven requeue; no fixed interval), reporting
    the `Running` condition message of a stalled one in `Ready`
 5. Create the `VirtualMachine` or `VirtualMachineTemplate` from the manifest `ConfigMap`

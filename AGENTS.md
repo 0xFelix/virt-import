@@ -17,9 +17,10 @@ deliverable of [VEP #395](https://github.com/kubevirt/enhancements/pull/396).
 The target kind is auto-detected from the OCI manifest's `artifactType`. Disk data is not fetched by
 this controller: it is delegated to CDI via `DataVolumes`.
 
-**Current state: Alpha in progress.** The import pipeline is implemented: metadata-fetch Job,
-DataVolume creation, config blob rewriting, target creation and finalizer GC. Functional tests and
-the `virtimportctl` CLI are not there yet.
+**Current state: Alpha.** The import pipeline (metadata-fetch Job, DataVolume creation, config blob
+rewriting, target creation, cleanup), functional tests including export/import round trips, and the
+`virtimportctl` CLI are implemented. It builds on unmerged CDI, KubeVirt and VEP changes; see
+"Temporary solutions" below before touching anything they affect.
 
 ## Architecture
 
@@ -188,12 +189,24 @@ make cluster-functest  # functional tests against that cluster
 make cluster-down
 ```
 
+`make undeploy`, which `*-sync` runs first, deletes all imports while the controller still runs;
+otherwise their finalizers would block the deletion of the CRD.
+
+`cluster-up` clones kubevirtci at the tag the latest KubeVirt release uses into `_cluster-up`. Only
+`cluster-up` clones, and it refuses a checkout of another tag; remove `_cluster-up` after
+`cluster-down` to move to a newer release.
+
 `kubevirt-up` / `-sync` / `-functest` / `-down` do the same against KubeVirt built from git:
-`KUBEVIRT_REF` (a branch, tag or commit) of `KUBEVIRT_REPO`, checked out into `_kubevirt`.
-`hack/cluster.sh` records the checked out ref in `.git/virt-import-ref` of `_kubevirt` and
-`_cluster-up` and never replaces an existing checkout automatically, since a running cluster
-depends on it; remove the directory after `kubevirt-down` / `cluster-down` to switch. Both `up`
+`KUBEVIRT_REF` (a branch, tag or commit) of `KUBEVIRT_REPO`, checked out into `_kubevirt`. Only
+`kubevirt-up` checks out; the other actions need an existing `_kubevirt` and use whatever it holds.
+`hack/cluster.sh` records the checked out ref in `.git/virt-import-ref` and never replaces or
+updates an existing checkout automatically, since a running cluster depends on it; remove
+`_kubevirt` after `kubevirt-down` to switch refs or pick up new commits of a branch. Both `up`
 paths enable the `OCIExport` feature gate for the functional tests importing KubeVirt exports.
+
+Rebuilding KubeVirt on a running cluster (`make cluster-sync` inside `_kubevirt`) deletes and
+recreates the `kubevirt` namespace, which removes virt-import, and resets the feature gates.
+Re-enable `OCIExport` and run `make kubevirt-sync` afterwards.
 
 Without `CDI_VERSION` both `up` paths install the CDI bundled with kubevirtci. Set it to install a
 different one instead - useful while virt-import depends on CDI features that are not yet in a
@@ -255,6 +268,23 @@ gpgme, `go tool` passes no build tags) and HCO discards the bundle scaffolding a
 HCO keeps only the CSV and CRDs, and a CSV carries just Deployments and RBAC, so an HCO install gets
 no metrics Service, ServiceMonitor, NetworkPolicies or ValidatingAdmissionPolicy. Hence no metrics in
 the CSV: the manager leaves `--metrics-bind-address` at `0`, needing no cert and no cert-manager.
+
+## Temporary solutions
+
+Each item below works around something unmerged or unreleased. Resolve it when its trigger happens.
+
+| Item | Workaround | Trigger and action |
+|---|---|---|
+| CDI #4301 (layer selection) | `go.mod` `replace` of the CDI API to the PR commit, `CDI_VERSION=source` default deploys CDI built from it (see "Temporary CDI API") | CDI release: drop the `replace` and the CDI defaults, bump to the tag, refresh the envtest CRDs with `make cluster-envtest-crds`, name the minimum CDI version in README.md |
+| CDI in e2e | Makefile defaults `CDI_VERSION=source`, `CDI_REPO`/`CDI_REF` on the same commit as the `replace` | Nightly with #4301: `CDI_VERSION=nightly`; release: pin the tag and drop `CDI_REPO`/`CDI_REF` defaults |
+| KubeVirt export PRs #19058, #19064, #19066, #19082, #19485 | `kubevirt-*` lane builds `KUBEVIRT_REPO`/`KUBEVIRT_REF` from a fork commit combining them; round trips only pass on that lane | Merged: point the lane at upstream `main`. Released: drop the `KUBEVIRT_REPO`/`KUBEVIRT_REF` defaults, the round trips pass on the `cluster-*` lane too |
+| enhancements #464 (persistent state, relaxed validation) | Strict validation: every PVC volume needs a disk layer and every layer a volume, only `disk.raw+zstd` layers | Merged: allow PVC volumes without layer (left untouched), skip one persistent state layer, update the fixtures |
+| OCI constants | Copied from KubeVirt's unexported `pkg/storage/oci` into `internal/artifact/constants.go` | Exported upstream (e.g. in `kubevirt.io/api`): import them |
+| kubecli and Kubernetes 0.37 | `internal/virtimportctl/kubecli` stand-in, generated clientsets in `tests/` | kubecli supports 0.37: use it, delete the stand-in |
+| HCO (VEP Phase 3) | csv-generator `--fetcher-image` is optional | HCO passes it |
+
+The VEP itself still describes some behavior differently (DV/PVC naming, digest pinning, fetcher
+output contract, cleanup timing, DataVolumes owned by the target); the code is authoritative until the VEP is updated.
 
 ## Conventions
 
