@@ -118,6 +118,10 @@ cluster-sync: generate ## Install virt-import to the kubevirtci cluster running 
 cluster-functest: ## Run the functional tests on the kubevirtci cluster running a stable version of KubeVirt.
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
+.PHONY: cluster-envtest-crds
+cluster-envtest-crds: ## Pull the third-party CRDs envtest needs from the kubevirtci cluster running a stable version of KubeVirt.
+	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) ./hack/envtest-crds.sh
+
 .PHONY: kubevirt-up
 kubevirt-up: ## Start a kubevirtci cluster running a git version of KubeVirt.
 	./hack/kubevirt.sh up
@@ -136,6 +140,10 @@ kubevirt-sync: generate ## Install virt-import to the kubevirtci cluster running
 .PHONY: kubevirt-functest
 kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running a git version of KubeVirt.
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
+
+.PHONY: kubevirt-envtest-crds
+kubevirt-envtest-crds: ## Pull the third-party CRDs envtest needs from the kubevirtci cluster running a git version of KubeVirt.
+	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) ./hack/envtest-crds.sh
 
 ##@ Build
 

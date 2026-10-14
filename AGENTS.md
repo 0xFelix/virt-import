@@ -72,7 +72,8 @@ DataVolume layer selection (`spec.source.registry.layer`) comes from the unmerge
 [CDI #4301](https://github.com/kubevirt/containerized-data-importer/pull/4301). Until a CDI release
 contains it, `go.mod` replaces `kubevirt.io/containerized-data-importer-api` with that PR's commit on
 the author's fork, and the Makefile's `CDI_VERSION=source` default deploys CDI built from the same
-commit. Re-pin both together; once released, drop the `replace` and the CDI defaults and bump to
+commit. Re-pin both together and refresh the envtest CRDs with `make cluster-envtest-crds` or
+`make kubevirt-envtest-crds`; once released, drop the `replace` and the CDI defaults and bump to
 the release tag.
 
 ## Controller Design
@@ -136,7 +137,8 @@ Service by DNS name.
 
 ### Prerequisites
 
-Go, podman or docker, kubectl. Build tools come from `tools/go.mod`, not your `$PATH`.
+Go, podman or docker, kubectl, and jq to pull the envtest CRDs (`make *-envtest-crds`). Build
+tools come from `tools/go.mod`, not your `$PATH`.
 
 ### Key make targets
 
@@ -192,8 +194,10 @@ applies that patch only when it deploys CDI itself.
 
 Ginkgo v2 + Gomega throughout, `envtest` for controller suites.
 
-- Unit/envtest: `make test`. `config/crd/testing/` holds third-party CRDs (CDI `DataVolume`,
-  virt-template `VirtualMachineTemplate`) that envtest needs.
+- Unit/envtest: `make test`. `config/crd/testing/` holds third-party CRDs (CDI `DataVolume` and
+  `CDIConfig`, virt-template `VirtualMachineTemplate`, KubeVirt `VirtualMachine`) that envtest needs.
+  `make cluster-envtest-crds` or `make kubevirt-envtest-crds` pulls them from a running cluster; do
+  not edit them by hand.
 - Functional: `make functest`, skipped when `KUBECONFIG` is unset.
 - `internal/controller/availability_controller_test.go` is the suite worth reading first: it starts an
   environment with the external CRDs deliberately absent and asserts the manager waits rather than
