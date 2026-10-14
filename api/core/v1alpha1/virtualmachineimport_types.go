@@ -34,16 +34,23 @@ type VirtualMachineImportSpec struct {
 
 	// TargetName is the name for the created VirtualMachine or
 	// VirtualMachineTemplate. Defaults to the VirtualMachineImport name.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:XValidation:rule="!format.dns1123Subdomain().validate(self).hasValue()",message="must be a valid DNS-1123 subdomain"
 	// +optional
-	TargetName *string `json:"targetName,omitempty"`
+	TargetName string `json:"targetName,omitempty"`
 
 	// StorageClassName overrides the default storage class for all
 	// DataVolumes created during the import.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:XValidation:rule="!format.dns1123Subdomain().validate(self).hasValue()",message="must be a valid DNS-1123 subdomain"
 	// +optional
-	StorageClassName *string `json:"storageClassName,omitempty"`
+	StorageClassName string `json:"storageClassName,omitempty"`
 }
 
 // VirtualMachineImportSource specifies where to import from.
+// +kubebuilder:validation:XValidation:rule="has(self.registry)",message="a registry source is required"
 type VirtualMachineImportSource struct {
 	// Registry specifies an OCI artifact in a container registry.
 	// +optional
@@ -54,15 +61,22 @@ type VirtualMachineImportSource struct {
 type VirtualMachineImportRegistrySource struct {
 	// URL is the registry URL
 	// (e.g. docker://registry.example.com/vms/fedora:v1).
+	// +kubebuilder:validation:XValidation:rule="self.startsWith('docker://')",message="url must start with docker://"
 	URL string `json:"url"`
 
 	// SecretRef is the name of a Secret containing registry credentials.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:XValidation:rule="!format.dns1123Subdomain().validate(self).hasValue()",message="must be a valid DNS-1123 subdomain"
 	// +optional
-	SecretRef *string `json:"secretRef,omitempty"`
+	SecretRef string `json:"secretRef,omitempty"`
 
 	// CertConfigMap is the name of a ConfigMap containing registry CA certificates.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:XValidation:rule="!format.dns1123Subdomain().validate(self).hasValue()",message="must be a valid DNS-1123 subdomain"
 	// +optional
-	CertConfigMap *string `json:"certConfigMap,omitempty"`
+	CertConfigMap string `json:"certConfigMap,omitempty"`
 
 	// Platform selects the architecture variant from a multi-arch artifact.
 	// +optional
@@ -72,8 +86,10 @@ type VirtualMachineImportRegistrySource struct {
 // PlatformOptions selects a platform variant from a multi-arch OCI artifact.
 type PlatformOptions struct {
 	// Architecture selects the platform variant (e.g. amd64, arm64).
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
 	// +optional
-	Architecture *string `json:"architecture,omitempty"`
+	Architecture string `json:"architecture,omitempty"`
 }
 
 // VirtualMachineImportStatus reports the observed import state.
@@ -90,11 +106,14 @@ type VirtualMachineImportStatus struct {
 
 	// DiskImports tracks the status of each disk being imported.
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	DiskImports []DiskImportStatus `json:"diskImports,omitempty"`
 
-	// TargetRef references the created VirtualMachine or VirtualMachineTemplate.
+	// TargetRef references the created VirtualMachine or VirtualMachineTemplate
+	// in the namespace of the VirtualMachineImport.
 	// +optional
-	TargetRef *corev1.ObjectReference `json:"targetRef,omitempty"`
+	TargetRef *corev1.TypedLocalObjectReference `json:"targetRef,omitempty"`
 }
 
 // ArtifactInfo contains metadata read from the OCI artifact.
@@ -105,8 +124,9 @@ type ArtifactInfo struct {
 	// Architecture is the resolved platform architecture.
 	Architecture string `json:"architecture"`
 
-	// DiskCount is the number of disk layers in the artifact.
-	DiskCount int `json:"diskCount"`
+	// Digest is the digest the disks are imported from: the image index
+	// digest for a multi-arch artifact, otherwise the manifest digest.
+	Digest string `json:"digest"`
 }
 
 // DiskImportStatus tracks the import of a single disk.
@@ -120,15 +140,20 @@ type DiskImportStatus struct {
 	// Phase mirrors cdiv1.DataVolumePhase values
 	// (e.g. "Succeeded", "ImportInProgress", "Failed").
 	Phase string `json:"phase"`
+
+	// Progress mirrors the DataVolume progress (e.g. "45.3%").
+	// +optional
+	Progress string `json:"progress,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:shortName=vmimport;vmimports,categories=all
+// +kubebuilder:resource:shortName=vmimport;vmimports
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Target",type="string",JSONPath=".status.targetRef.name"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="Progressing",type="string",JSONPath=".status.conditions[?(@.type=='Progressing')].status"
+// +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].reason"
 // +genclient
 
 // VirtualMachineImport imports a VirtualMachine or VirtualMachineTemplate

@@ -8,8 +8,6 @@ metadata:
 spec:
   group: import.kubevirt.io
   names:
-    categories:
-    - all
     kind: VirtualMachineImport
     listKind: VirtualMachineImportList
     plural: virtualmachineimports
@@ -31,6 +29,9 @@ spec:
       type: string
     - jsonPath: .status.conditions[?(@.type=='Progressing')].status
       name: Progressing
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].reason
+      name: Reason
       type: string
     name: v1alpha1
     schema:
@@ -72,7 +73,12 @@ spec:
                       certConfigMap:
                         description: CertConfigMap is the name of a ConfigMap containing
                           registry CA certificates.
+                        maxLength: 253
+                        minLength: 1
                         type: string
+                        x-kubernetes-validations:
+                        - message: must be a valid DNS-1123 subdomain
+                          rule: '!format.dns1123Subdomain().validate(self).hasValue()'
                       platform:
                         description: Platform selects the architecture variant from
                           a multi-arch artifact.
@@ -80,31 +86,54 @@ spec:
                           architecture:
                             description: Architecture selects the platform variant
                               (e.g. amd64, arm64).
+                            maxLength: 63
+                            minLength: 1
                             type: string
                         type: object
                       secretRef:
                         description: SecretRef is the name of a Secret containing
                           registry credentials.
+                        maxLength: 253
+                        minLength: 1
                         type: string
+                        x-kubernetes-validations:
+                        - message: must be a valid DNS-1123 subdomain
+                          rule: '!format.dns1123Subdomain().validate(self).hasValue()'
                       url:
                         description: |-
                           URL is the registry URL
                           (e.g. docker://registry.example.com/vms/fedora:v1).
                         type: string
+                        x-kubernetes-validations:
+                        - message: url must start with docker://
+                          rule: self.startsWith('docker://')
                     required:
                     - url
                     type: object
                 type: object
+                x-kubernetes-validations:
+                - message: a registry source is required
+                  rule: has(self.registry)
               storageClassName:
                 description: |-
                   StorageClassName overrides the default storage class for all
                   DataVolumes created during the import.
+                maxLength: 253
+                minLength: 1
                 type: string
+                x-kubernetes-validations:
+                - message: must be a valid DNS-1123 subdomain
+                  rule: '!format.dns1123Subdomain().validate(self).hasValue()'
               targetName:
                 description: |-
                   TargetName is the name for the created VirtualMachine or
                   VirtualMachineTemplate. Defaults to the VirtualMachineImport name.
+                maxLength: 253
+                minLength: 1
                 type: string
+                x-kubernetes-validations:
+                - message: must be a valid DNS-1123 subdomain
+                  rule: '!format.dns1123Subdomain().validate(self).hasValue()'
             required:
             - source
             type: object
@@ -123,13 +152,15 @@ spec:
                   artifactType:
                     description: ArtifactType is the OCI artifactType from the manifest.
                     type: string
-                  diskCount:
-                    description: DiskCount is the number of disk layers in the artifact.
-                    type: integer
+                  digest:
+                    description: |-
+                      Digest is the digest the disks are imported from: the image index
+                      digest for a multi-arch artifact, otherwise the manifest digest.
+                    type: string
                 required:
                 - architecture
                 - artifactType
-                - diskCount
+                - digest
                 type: object
               conditions:
                 description: Conditions represent the latest observations of the import.
@@ -208,53 +239,39 @@ spec:
                         Phase mirrors cdiv1.DataVolumePhase values
                         (e.g. "Succeeded", "ImportInProgress", "Failed").
                       type: string
+                    progress:
+                      description: Progress mirrors the DataVolume progress (e.g.
+                        "45.3%").
+                      type: string
                   required:
                   - dataVolumeName
                   - name
                   - phase
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
               targetRef:
-                description: TargetRef references the created VirtualMachine or VirtualMachineTemplate.
+                description: |-
+                  TargetRef references the created VirtualMachine or VirtualMachineTemplate
+                  in the namespace of the VirtualMachineImport.
                 properties:
-                  apiVersion:
-                    description: API version of the referent.
-                    type: string
-                  fieldPath:
+                  apiGroup:
                     description: |-
-                      If referring to a piece of an object instead of an entire object, this string
-                      should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].
-                      For example, if the object reference is to a container within a pod, this would take on a value like:
-                      "spec.containers{name}" (where "name" refers to the name of the container that triggered
-                      the event) or if no container name is specified "spec.containers[2]" (container with
-                      index 2 in this pod). This syntax is chosen only to have some well-defined way of
-                      referencing a part of an object.
+                      APIGroup is the group for the resource being referenced.
+                      If APIGroup is not specified, the specified Kind must be in the core API group.
+                      For any other third-party types, APIGroup is required.
                     type: string
                   kind:
-                    description: |-
-                      Kind of the referent.
-                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                    description: Kind is the type of resource being referenced
                     type: string
                   name:
-                    description: |-
-                      Name of the referent.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    description: Name is the name of resource being referenced
                     type: string
-                  namespace:
-                    description: |-
-                      Namespace of the referent.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
-                    type: string
-                  resourceVersion:
-                    description: |-
-                      Specific resourceVersion to which this reference is made, if any.
-                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
-                    type: string
-                  uid:
-                    description: |-
-                      UID of the referent.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
-                    type: string
+                required:
+                - kind
+                - name
                 type: object
                 x-kubernetes-map-type: atomic
             type: object

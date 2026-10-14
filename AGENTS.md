@@ -107,8 +107,8 @@ call `SetupWithManager` directly from `cmd/main.go`.
 
 ### Authorization
 
-There is no Go webhook. Spec immutability is a CRD CEL rule
-(`+kubebuilder:validation:XValidation:rule="self == oldSelf"`), and privilege-escalation is prevented
+There is no Go webhook. Spec immutability, a required registry source, its `docker://` URL and valid
+object names are CRD CEL rules (`+kubebuilder:validation:XValidation`), and privilege-escalation is prevented
 by a `ValidatingAdmissionPolicy` in `config/admission/`: creating a `VirtualMachineImport` requires
 that the user could create `DataVolumes`, `VirtualMachines` and `VirtualMachineTemplates` in the
 target namespace themselves. Both possible targets are checked up front, since the artifact has not
