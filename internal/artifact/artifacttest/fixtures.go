@@ -41,6 +41,7 @@ const (
 	VMMultiArch           = "vm-multiarch"
 	VMPlainManifest       = "vm-plain-manifest"
 	VMTemplateDVT         = "vmtemplate-dvt"
+	VMTemplateMultiDisk   = "vmtemplate-multidisk"
 	VMUnsetArch           = "vm-unset-arch"
 	ArchMismatch          = "arch-mismatch"
 	BadArtifactType       = "bad-artifacttype"
@@ -58,10 +59,12 @@ const (
 	ArchAMD64 = "amd64"
 	ArchARM64 = "arm64"
 
-	vmName       = "fixture-vm"
-	templateName = "fixture-template"
-	cloudInit    = "cloudinit"
-	extraDisk    = "extradisk"
+	vmName             = "fixture-vm"
+	templateName       = "fixture-template"
+	dataSourceName     = "fedora"
+	cloudInit          = "cloudinit"
+	extraDisk          = "extradisk"
+	dataSourceDiskName = "datasourcedisk"
 )
 
 func Fixtures() map[string]*Artifact {
@@ -77,8 +80,19 @@ func Fixtures() map[string]*Artifact {
 			Architecture:    ArchAMD64,
 			ArtifactType:    artifact.ArtifactTypeVMTemplate,
 			ConfigMediaType: artifact.MediaTypeVMTemplateConfig,
-			Config:          templateConfig(),
+			Config:          templateConfig(templateDisk{name: RootDisk, kind: clonedDisk}),
 			Disks:           []Disk{newDisk(RootDisk)},
+		}}},
+		VMTemplateMultiDisk: {Images: []Image{{
+			Architecture:    ArchAMD64,
+			ArtifactType:    artifact.ArtifactTypeVMTemplate,
+			ConfigMediaType: artifact.MediaTypeVMTemplateConfig,
+			Config: templateConfig(
+				templateDisk{name: RootDisk, kind: clonedDisk},
+				templateDisk{name: DataDisk, kind: pvcDisk},
+				templateDisk{name: dataSourceDiskName, kind: dataSourceDisk},
+			),
+			Disks: []Disk{newDisk(RootDisk), newDisk(DataDisk)},
 		}}},
 		VMUnsetArch:  withIndexArch(vmArtifact("", []string{RootDisk}, RootDisk), ArchARM64),
 		ArchMismatch: withIndexArch(vmArtifact(ArchAMD64, []string{RootDisk}, RootDisk), ArchARM64),
@@ -182,21 +196,56 @@ func vm(name, arch string, volumes ...virtv1.Volume) *virtv1.VirtualMachine {
 	}
 }
 
-func templateConfig() []byte {
-	const dvtName = "${NAME}-" + RootDisk
-	tplVM := vm("${NAME}", ArchAMD64, virtv1.Volume{
-		Name:         RootDisk,
-		VolumeSource: virtv1.VolumeSource{DataVolume: &virtv1.DataVolumeSource{Name: dvtName}},
-	})
-	tplVM.Spec.DataVolumeTemplates = []virtv1.DataVolumeTemplateSpec{{
-		ObjectMeta: metav1.ObjectMeta{Name: dvtName},
-		Spec: cdiv1beta1.DataVolumeSpec{
-			Source: &cdiv1beta1.DataVolumeSource{PVC: &cdiv1beta1.DataVolumeSourcePVC{Name: templateName + "-" + RootDisk}},
-			Storage: &cdiv1beta1.StorageSpec{Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{corev1.ResourceStorage: *resource.NewQuantity(DiskSize, resource.BinarySI)},
-			}},
-		},
-	}}
+type templateDisk struct {
+	name string
+	kind templateDiskKind
+}
+
+type templateDiskKind int
+
+const (
+	// clonedDisk is a DataVolumeTemplate cloning a PVC, exported as a layer.
+	clonedDisk templateDiskKind = iota
+	// pvcDisk is a plain PVC volume, exported as a layer.
+	pvcDisk
+	// dataSourceDisk is a DataVolumeTemplate importing from a DataSource, not exported.
+	dataSourceDisk
+)
+
+func templateConfig(disks ...templateDisk) []byte {
+	const vmName = "${NAME}"
+	var volumes []virtv1.Volume
+	var dvts []virtv1.DataVolumeTemplateSpec
+	for _, disk := range disks {
+		if disk.kind == pvcDisk {
+			volumes = append(volumes, pvcVolume(templateName, disk.name))
+			continue
+		}
+
+		dvtName := vmName + "-" + disk.name
+		volumes = append(volumes, virtv1.Volume{
+			Name:         disk.name,
+			VolumeSource: virtv1.VolumeSource{DataVolume: &virtv1.DataVolumeSource{Name: dvtName}},
+		})
+		dvt := virtv1.DataVolumeTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Name: dvtName},
+			Spec: cdiv1beta1.DataVolumeSpec{
+				Storage: &cdiv1beta1.StorageSpec{Resources: corev1.VolumeResourceRequirements{
+					// CDI rejects DataVolumes smaller than 1Mi, which the DVT becomes when a VM is created.
+					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")},
+				}},
+			},
+		}
+		if disk.kind == clonedDisk {
+			dvt.Spec.Source = &cdiv1beta1.DataVolumeSource{PVC: &cdiv1beta1.DataVolumeSourcePVC{Name: templateName + "-" + disk.name}}
+		} else {
+			dvt.Spec.SourceRef = &cdiv1beta1.DataVolumeSourceRef{Kind: cdiv1beta1.DataVolumeDataSource, Name: dataSourceName}
+		}
+		dvts = append(dvts, dvt)
+	}
+
+	tplVM := vm(vmName, ArchAMD64, volumes...)
+	tplVM.Spec.DataVolumeTemplates = dvts
 
 	return mustJSON(&templatev1beta1.VirtualMachineTemplate{
 		TypeMeta:   metav1.TypeMeta{APIVersion: templatev1beta1.GroupVersion.String(), Kind: "VirtualMachineTemplate"},
