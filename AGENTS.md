@@ -174,7 +174,12 @@ make cluster-functest  # functional tests against that cluster
 make cluster-down
 ```
 
-`kubevirt-up` / `-sync` / `-functest` / `-down` do the same against KubeVirt built from git.
+`kubevirt-up` / `-sync` / `-functest` / `-down` do the same against KubeVirt built from git:
+`KUBEVIRT_REF` (a branch, tag or commit) of `KUBEVIRT_REPO`, checked out into `_kubevirt`.
+`hack/cluster.sh` records the checked out ref in `.git/virt-import-ref` of `_kubevirt` and
+`_cluster-up` and never replaces an existing checkout automatically, since a running cluster
+depends on it; remove the directory after `kubevirt-down` / `cluster-down` to switch. Both `up`
+paths enable the `OCIExport` feature gate for the functional tests importing KubeVirt exports.
 
 Without `CDI_VERSION` both `up` paths install the CDI bundled with kubevirtci. Set it to install a
 different one instead - useful while virt-import depends on CDI features that are not yet in a

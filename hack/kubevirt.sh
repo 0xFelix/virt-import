@@ -21,7 +21,9 @@ set -ex
 
 export KUBEVIRT_MEMORY_SIZE="${KUBEVIRT_MEMORY_SIZE:-16G}"
 export KUBEVIRT_STORAGE="${KUBEVIRT_STORAGE:-rook-ceph-default}"
-export KUBEVIRT_TAG="${KUBEVIRT_TAG:-main}"
+# KubeVirt is built from KUBEVIRT_REF (a branch, tag or commit) of KUBEVIRT_REPO.
+export KUBEVIRT_REPO="${KUBEVIRT_REPO:-https://github.com/kubevirt/kubevirt.git}"
+export KUBEVIRT_REF="${KUBEVIRT_REF:-main}"
 
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 _kubevirt_dir="${_base_dir}/_kubevirt"
@@ -31,15 +33,10 @@ _kubevirtcicli="${_base_dir}/_kubevirt/kubevirtci/cluster-up/cli.sh"
 _action=$1
 shift
 
+source "${_base_dir}/hack/cluster.sh"
 source "${_base_dir}/hack/cdi.sh"
 KUBEVIRT_DEPLOY_CDI="$(cdi::deploy_bundled)"
 export KUBEVIRT_DEPLOY_CDI
-
-function kubevirt::fetch_kubevirt() {
-  if [[ ! -d ${_kubevirt_dir} ]]; then
-    git clone --depth 1 --branch "${KUBEVIRT_TAG}" https://github.com/kubevirt/kubevirt.git "${_kubevirt_dir}"
-  fi
-}
 
 function kubevirt::up() {
   make cluster-up -C "${_kubevirt_dir}"
@@ -58,6 +55,9 @@ function kubevirt::up() {
     ${_kubectl} patch -n kubevirt kubevirt kubevirt --type merge -p '{"spec": {"configuration": { "vmStateStorageClass": "'"$DEFAULT_STORAGE_CLASS"'" }}}'
   fi
 
+  # The functional tests import VMs exported as OCI artifacts.
+  cluster::enable_feature_gate "${_kubectl}" OCIExport
+
   echo "waiting for kubevirt to become ready, this can take a few minutes..."
   ${_kubectl} -n kubevirt wait kv kubevirt --for condition=Available --timeout=15m
 }
@@ -75,7 +75,14 @@ function kubevirt::registry() {
   echo "localhost:${port}"
 }
 
-kubevirt::fetch_kubevirt
+# Only bringing a cluster up checks out KubeVirt; every other action works on the existing
+# checkout, whatever ref it holds.
+if [[ ${_action} == "up" ]]; then
+  cluster::checkout "${_kubevirt_dir}" "${KUBEVIRT_REPO}" "${KUBEVIRT_REF}" kubevirt-down
+elif [[ ! -d ${_kubevirt_dir} ]]; then
+  echo "${_kubevirt_dir} does not exist, run 'make kubevirt-up' first." >&2
+  exit 1
+fi
 
 case ${_action} in
   "up")

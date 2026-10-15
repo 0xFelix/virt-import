@@ -7,7 +7,9 @@
 bin/
 dist/
 _cluster-up/
+_cluster-up.tmp/
 _kubevirt/
+_kubevirt.tmp/
 _out/
 
 # Test binary, built with `go test -c`

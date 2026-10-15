@@ -4,7 +4,9 @@ bin/
 dist/
 # Ignore the cluster checkouts, which are large and not needed by any image.
 _cluster-up/
+_cluster-up.tmp/
 _kubevirt/
+_kubevirt.tmp/
 # Of the build output only the controller image needs the rendered manifests.
 _out/*
 !_out/manifests.yaml

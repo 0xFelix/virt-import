@@ -68,15 +68,12 @@ function cdi::manifest_base() {
 
 # Check out CDI_REF of CDI_REPO, reusing an earlier checkout of the same ref.
 function cdi::fetch_source() {
-  if [[ -f ${_cdi_src_dir}/.ref && $(cat "${_cdi_src_dir}/.ref") == "${CDI_REPO}@${CDI_REF}" ]]; then
+  if [[ $(cluster::checked_out_ref "${_cdi_src_dir}") == "${CDI_REPO}@${CDI_REF}" ]]; then
     return
   fi
 
   rm -rf "${_cdi_src_dir}"
-  git init -q "${_cdi_src_dir}"
-  git -C "${_cdi_src_dir}" fetch -q --depth 1 "${CDI_REPO}" "${CDI_REF}"
-  git -C "${_cdi_src_dir}" checkout -q FETCH_HEAD
-  echo "${CDI_REPO}@${CDI_REF}" > "${_cdi_src_dir}/.ref"
+  cluster::clone "${_cdi_src_dir}" "${CDI_REPO}" "${CDI_REF}"
 }
 
 # Build CDI from source and push its images to the kubevirtci registry. The manifests

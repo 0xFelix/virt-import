@@ -32,21 +32,17 @@ _kubevirtcicli="${_cluster_up_dir}/cluster-up/cli.sh"
 _action=$1
 shift
 
+source "${_base_dir}/hack/cluster.sh"
 source "${_base_dir}/hack/cdi.sh"
 KUBEVIRT_DEPLOY_CDI="$(cdi::deploy_bundled)"
 export KUBEVIRT_DEPLOY_CDI
-
-function kubevirtci::fetch_kubevirtci() {
-	if [[ ! -d ${_cluster_up_dir} ]]; then
-    git clone --depth 1 --branch "${KUBEVIRTCI_TAG}" https://github.com/kubevirt/kubevirtci.git "${_cluster_up_dir}"
-  fi
-}
 
 function kubevirtci::up() {
   make cluster-up -C "${_cluster_up_dir}"
   KUBECONFIG=$(kubevirtci::kubeconfig)
   export KUBECONFIG
 
+  # KubeVirt only patches insecureRegistries when it deploys CDI itself, so do it here.
   cdi::deploy "${_kubectl}" "$(kubevirtci::registry)"
 
   echo "installing kubevirt..."
@@ -60,6 +56,9 @@ function kubevirtci::up() {
     echo "patching kubevirt with vmStateStorageClass ${DEFAULT_STORAGE_CLASS}"
     ${_kubectl} patch -n kubevirt kubevirt kubevirt --type merge -p '{"spec": {"configuration": { "vmStateStorageClass": "'"$DEFAULT_STORAGE_CLASS"'" }}}'
   fi
+
+  # The functional tests import VMs exported as OCI artifacts.
+  cluster::enable_feature_gate "${_kubectl}" OCIExport
 
   echo "waiting for kubevirt to become ready, this can take a few minutes..."
   ${_kubectl} -n kubevirt wait kv kubevirt --for condition=Available --timeout=15m
@@ -78,7 +77,14 @@ function kubevirtci::registry() {
   echo "localhost:${port}"
 }
 
-kubevirtci::fetch_kubevirtci
+# Only bringing a cluster up checks out kubevirtci; every other action works on the existing
+# checkout, whatever tag it holds.
+if [[ ${_action} == "up" ]]; then
+  cluster::checkout "${_cluster_up_dir}" https://github.com/kubevirt/kubevirtci.git "${KUBEVIRTCI_TAG}" cluster-down
+elif [[ ! -d ${_cluster_up_dir} ]]; then
+  echo "${_cluster_up_dir} does not exist, run 'make cluster-up' first." >&2
+  exit 1
+fi
 
 case ${_action} in
   "up")
