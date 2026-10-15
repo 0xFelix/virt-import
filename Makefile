@@ -8,6 +8,11 @@ IMG_FETCHER ?= ${IMG_REGISTRY}/virt-import-fetcher:${VERSION}
 export CDI_VERSION ?= source
 export CDI_REPO ?= https://github.com/Acedus/containerized-data-importer
 export CDI_REF ?= defc3b3d6c7f19f02a72f4a1e378078fe8a2124b
+# Temporary: KubeVirt with the OCI export fixes the KubeVirt export tests need
+# (kubevirt/kubevirt#19058, #19064, #19066, #19082, #19485), from the
+# export-dvt-by-name-oci-index-blob branch.
+export KUBEVIRT_REPO ?= https://github.com/0xFelix/kubevirt.git
+export KUBEVIRT_REF ?= b3194c5d22725dd074fc02d6c3c3b7a85ba3b598
 # VERSION defaults to 'latest', which is not a semantic version; the CSV needs one.
 CSV_VERSION ?= 0.0.0
 CSV_NAMESPACE ?= kubevirt
@@ -111,12 +116,13 @@ cluster-down: ## Stop the kubevirtci cluster running a stable version of KubeVir
 .PHONY: cluster-sync
 cluster-sync: generate ## Install virt-import to the kubevirtci cluster running a stable version of KubeVirt.
 	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirtci.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
+	$(call push-functest-image,$$(./hack/kubevirtci.sh registry))
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) hack/wait.sh
 
 .PHONY: cluster-functest
 cluster-functest: ## Run the functional tests on the kubevirtci cluster running a stable version of KubeVirt.
-	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
+	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all -push-registry=$$(./hack/kubevirtci.sh registry) $(FUNCTEST_EXTRA_ARGS)
 
 .PHONY: cluster-envtest-crds
 cluster-envtest-crds: ## Pull the third-party CRDs envtest needs from the kubevirtci cluster running a stable version of KubeVirt.
@@ -134,12 +140,13 @@ kubevirt-down: ## Stop the kubevirtci cluster running a git version of KubeVirt.
 .PHONY: kubevirt-sync
 kubevirt-sync: generate ## Install virt-import to the kubevirtci cluster running a git version of KubeVirt.
 	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirt.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
+	$(call push-functest-image,$$(./hack/kubevirt.sh registry))
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) hack/wait.sh
 
 .PHONY: kubevirt-functest
 kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running a git version of KubeVirt.
-	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
+	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all -push-registry=$$(./hack/kubevirt.sh registry) $(FUNCTEST_EXTRA_ARGS)
 
 .PHONY: kubevirt-envtest-crds
 kubevirt-envtest-crds: ## Pull the third-party CRDs envtest needs from the kubevirtci cluster running a git version of KubeVirt.
@@ -167,14 +174,25 @@ container-build-controller: build-csv-manifests ## Build container image with th
 container-build-fetcher: ## Build container image with the fetcher.
 	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_FETCHER),fetcher.Dockerfile)
 
+# Builds the functional tests' helper image and pushes it to the kubevirtci registry $(1). Never
+# released.
+# Usage: $(call push-functest-image,<registry>)
+define push-functest-image
+	$(call container-build-with-tool,$(CONTAINER_TOOL),$(1)/virt-import-functest:latest,tests/image/Dockerfile,tests/image)
+	$(if $(filter podman,$(CONTAINER_TOOL)),podman manifest push --tls-verify=false $(1)/virt-import-functest:latest $(1)/virt-import-functest:latest)
+endef
+
+cluster-sync kubevirt-sync: IMG_PLATFORMS = linux/$(IMG_BUILD_ARCH)
+
 IMG_BUILD_ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 DOCKER_BUILDER ?= virt-import-docker-builder
 
 # Generic function to build container images
-# Usage: $(call container-build-with-tool,<tool>,<image>,<containerfile>)
+# Usage: $(call container-build-with-tool,<tool>,<image>,<containerfile>[,<context>])
+# The build context defaults to the repository root.
 define container-build-with-tool
 	BUILD_ARCH=$(IMG_BUILD_ARCH) PLATFORMS=$(IMG_PLATFORMS) \
-	IMG=$(2) CONTAINERFILE=$(3) \
+	IMG=$(2) CONTAINERFILE=$(3) CONTEXT=$(or $(4),.) \
 	$(if $(filter docker,$(1)),DOCKER_BUILDER=$(DOCKER_BUILDER)) \
 	./hack/container-build-$(1).sh
 endef

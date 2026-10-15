@@ -21,6 +21,7 @@ package tests_test
 
 import (
 	"context"
+	"flag"
 	"os"
 	"testing"
 
@@ -29,25 +30,52 @@ import (
 
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
 
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/types"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	cdiclient "kubevirt.io/client-go/containerizeddataimporter"
 	kubevirtclient "kubevirt.io/client-go/kubevirt"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 
+	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
+
 	importclient "kubevirt.io/virt-import-client-go/virtimport"
+
+	"kubevirt.io/virt-import/internal/artifact/artifacttest"
 )
 
 const (
-	NamespaceTest = "vm-import-test"
+	// NamespaceVirtImport is where virt-import is deployed.
+	NamespaceVirtImport = "kubevirt"
+
+	testRepositoryPrefix = "virt-import-tests/"
+	testTag              = "latest"
 )
 
 var (
-	kubeClient   kubernetes.Interface
-	virtClient   kubevirtclient.Interface
-	importClient importclient.Interface
+	// testNamespace is created for every spec and deleted after it, with everything in it.
+	testNamespace string
+
+	restConfig     *rest.Config
+	kubeClient     kubernetes.Interface
+	virtClient     kubevirtclient.Interface
+	cdiClient      cdiclient.Interface
+	importClient   importclient.Interface
+	templateClient templateclient.Interface
+
+	testRegistry = flag.String("registry", "registry:5000",
+		"registry the test artifact fixtures are pushed to, as seen from the cluster")
+	pushRegistry = flag.String("push-registry", "", "the same registry as seen from the test host (required)")
+	testImage    = flag.String("test-image", "registry:5000/virt-import-functest:latest",
+		"image of the helper Pods (tests/image/Dockerfile)")
 
 	afterSuiteReporters []Reporter
 )
@@ -57,30 +85,34 @@ var _ = BeforeSuite(func() {
 	if _, err := os.Stat(kubeconfigPath); os.IsNotExist(err) {
 		Skip("KUBECONFIG not found, skipping tests")
 	}
+	Expect(*pushRegistry).ToNot(BeEmpty(), "-push-registry must be set to the test registry as seen from the test host")
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	var err error
+	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	kubeClient, err = kubernetes.NewForConfig(config)
+	kubeClient, err = kubernetes.NewForConfig(restConfig)
 	Expect(err).NotTo(HaveOccurred())
 
-	virtClient, err = kubevirtclient.NewForConfig(config)
+	virtClient, err = kubevirtclient.NewForConfig(restConfig)
 	Expect(err).NotTo(HaveOccurred())
 
-	importClient, err = importclient.NewForConfig(config)
+	cdiClient, err = cdiclient.NewForConfig(restConfig)
 	Expect(err).NotTo(HaveOccurred())
 
-	namespaceTest := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: NamespaceTest,
-		},
+	importClient, err = importclient.NewForConfig(restConfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	templateClient, err = templateclient.NewForConfig(restConfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	for fixtureName, fixture := range artifacttest.Fixtures() {
+		pushFixture(fixtureName, fixture)
 	}
-	_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), namespaceTest, metav1.CreateOptions{})
-	Expect(err).NotTo(HaveOccurred())
 })
 
-var _ = AfterSuite(func() {
-	Expect(kubeClient.CoreV1().Namespaces().Delete(context.Background(), NamespaceTest, metav1.DeleteOptions{})).To(Succeed())
+var _ = BeforeEach(func() {
+	testNamespace = createNamespace()
 })
 
 var _ = ReportAfterSuite("TestFunctional", func(report Report) {
@@ -100,4 +132,47 @@ func TestFunctional(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Functional test suite")
+}
+
+// pushFixture pushes a fixture as <testRepositoryPrefix><fixtureName>:<testTag> to the test
+// registry, as the test host sees it.
+func pushFixture(fixtureName string, fixture *artifacttest.Artifact) {
+	GinkgoHelper()
+	dir := GinkgoT().TempDir()
+	Expect(fixture.WriteLayout(dir)).To(Succeed(), "failed to write fixture %s", fixtureName)
+	path, err := layout.FromPath(dir)
+	Expect(err).ToNot(HaveOccurred())
+	index, err := path.ImageIndex()
+	Expect(err).ToNot(HaveOccurred())
+	indexManifest, err := index.IndexManifest()
+	Expect(err).ToNot(HaveOccurred())
+	Expect(indexManifest.Manifests).To(HaveLen(1))
+	top := indexManifest.Manifests[0]
+
+	ref, err := name.NewTag(*pushRegistry+"/"+testRepositoryPrefix+fixtureName+":"+testTag, name.Insecure)
+	Expect(err).ToNot(HaveOccurred())
+	opt := remote.WithContext(context.Background())
+	if top.MediaType == types.OCIImageIndex {
+		child, err := index.ImageIndex(top.Digest)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(remote.WriteIndex(ref, child, opt)).To(Succeed(), "failed to push fixture %s", fixtureName)
+	} else {
+		image, err := index.Image(top.Digest)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(remote.Write(ref, image, opt)).To(Succeed(), "failed to push fixture %s", fixtureName)
+	}
+}
+
+// createNamespace creates a namespace that is deleted, with everything in it, after the spec.
+func createNamespace() string {
+	GinkgoHelper()
+	namespace, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{GenerateName: "vm-import-test-"},
+	}, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(func() {
+		Expect(kubeClient.CoreV1().Namespaces().Delete(context.Background(), namespace.Name, metav1.DeleteOptions{})).
+			To(Succeed())
+	})
+	return namespace.Name
 }

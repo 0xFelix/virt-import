@@ -81,6 +81,8 @@ var _ = Describe("Fetch", func() {
 			artifact.ArtifactTypeVM, artifacttest.ArchAMD64, artifacttest.RootDisk),
 		Entry("a VMTemplate", artifacttest.VMTemplateDVT, "", true, artifact.ArtifactTypeVMTemplate, artifacttest.ArchAMD64,
 			artifacttest.RootDisk),
+		Entry("a VMTemplate with several kinds of volumes", artifacttest.VMTemplateMultiDisk, "", true,
+			artifact.ArtifactTypeVMTemplate, artifacttest.ArchAMD64, artifacttest.RootDisk, artifacttest.DataDisk),
 		Entry("the index architecture of a VM without architecture", artifacttest.VMUnsetArch, "", true,
 			artifact.ArtifactTypeVM, artifacttest.ArchARM64, artifacttest.RootDisk),
 	)

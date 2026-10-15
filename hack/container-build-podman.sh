@@ -38,5 +38,5 @@ for PLATFORM in "${PLATFORM_LIST[@]}"; do
     --platform "${PLATFORM}" \
     --manifest "${IMG}" \
     -f "${CONTAINERFILE}" \
-    .
+    "${CONTEXT:-.}"
 done

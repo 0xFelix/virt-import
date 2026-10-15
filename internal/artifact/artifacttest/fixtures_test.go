@@ -106,6 +106,8 @@ var _ = Describe("Fixtures", func() {
 			artifact.ArtifactTypeVM, artifacttest.ArchARM64, 1),
 		Entry(artifacttest.VMPlainManifest, artifacttest.VMPlainManifest, "", artifact.ArtifactTypeVM, artifacttest.ArchAMD64, 1),
 		Entry(artifacttest.VMTemplateDVT, artifacttest.VMTemplateDVT, "", artifact.ArtifactTypeVMTemplate, artifacttest.ArchAMD64, 1),
+		Entry(artifacttest.VMTemplateMultiDisk, artifacttest.VMTemplateMultiDisk, "", artifact.ArtifactTypeVMTemplate,
+			artifacttest.ArchAMD64, 2),
 		Entry(artifacttest.VMUnsetArch, artifacttest.VMUnsetArch, "", artifact.ArtifactTypeVM, artifacttest.ArchARM64, 1),
 	)
 
