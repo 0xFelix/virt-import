@@ -205,7 +205,7 @@ Ginkgo v2 + Gomega throughout, `envtest` for controller suites.
   `CDIConfig`, virt-template `VirtualMachineTemplate`, KubeVirt `VirtualMachine`) that envtest needs.
   `make cluster-envtest-crds` or `make kubevirt-envtest-crds` pulls them from a running cluster; do
   not edit them by hand.
-- Functional: `make functest`, skipped when `KUBECONFIG` is unset.
+- Functional: `make functest`, skipped when `KUBECONFIG` is unset. See [tests/AGENTS.md](tests/AGENTS.md).
 - `internal/controller/availability_controller_test.go` is the suite worth reading first: it starts an
   environment with the external CRDs deliberately absent and asserts the manager waits rather than
   crashes.
@@ -245,7 +245,10 @@ the CSV: the manager leaves `--metrics-bind-address` at `0`, needing no cert and
 - PRs and issues must follow the GitHub templates in `.github/`. Always read the template before
   creating a PR or issue and fill in all sections.
 - Container images: `quay.io/kubevirt/virt-import-controller` (`Dockerfile`) and
-  `quay.io/kubevirt/virt-import-fetcher` (`fetcher.Dockerfile`, runs in the metadata-fetch Job)
+  `quay.io/kubevirt/virt-import-fetcher` (`fetcher.Dockerfile`, runs in the metadata-fetch Job).
+  `tests/image/Dockerfile` builds `virt-import-functest`, the helper Pod image of the functional
+  tests; only `cluster-sync` / `kubevirt-sync` build it and push it to the kubevirtci registry, it
+  is never released or pushed elsewhere
 - Multi-arch: linux/amd64, linux/arm64, linux/s390x
 - Generated client code lives in `staging/`
 - Logging levels: `V(1)` for debug, `V(2)` for trace
