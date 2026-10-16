@@ -12,6 +12,9 @@ export a VM on one cluster, push it to a registry, import it on another.
 > implemented. virt-import depends on CDI and KubeVirt changes that are not released yet, see
 > [Requirements](#requirements). Targeting KubeVirt v1.10.
 
+To try it out on a local cluster, follow the [demo](docs/demo.md): it exports a VM with two disks,
+pushes it to a registry and imports it again.
+
 ## How it works
 
 ```
