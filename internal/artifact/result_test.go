@@ -33,6 +33,8 @@ import (
 )
 
 var _ = Describe("FetchResult", func() {
+	const logLine = "time=2026-10-09T12:00:00Z level=INFO msg=\"fetching manifest\"\n"
+
 	newResult := func(config string) *artifact.FetchResult {
 		return &artifact.FetchResult{
 			ArtifactType:   artifact.ArtifactTypeVM,
@@ -53,22 +55,27 @@ var _ = Describe("FetchResult", func() {
 		return buf.String()
 	}
 
-	decode := func(line string) *artifact.FetchResult {
-		parsed := struct {
-			FetchResult *artifact.FetchResult `json:"fetchResult"`
-			Version     int                   `json:"version"`
-		}{}
-		ExpectWithOffset(1, json.Unmarshal([]byte(line), &parsed)).To(Succeed())
-		ExpectWithOffset(1, parsed.Version).To(Equal(1))
-		return parsed.FetchResult
-	}
-
-	It("should write the result as a single line", func() {
-		result := newResult(`{"kind":"VirtualMachine"}`)
-		line := resultLine(result)
+	It("should write a single line", func() {
+		line := resultLine(newResult(`{"kind":"VirtualMachine"}`))
 		Expect(strings.Count(line, "\n")).To(Equal(1))
 		Expect(line).To(HavePrefix(`{"fetchResult":{`))
-		Expect(decode(line)).To(Equal(result))
+	})
+
+	It("should parse the result between other output", func() {
+		result := newResult(`{"kind":"VirtualMachine"}`)
+		output := logLine + `{"level":"info","msg":"structured log"}` + "\n" + resultLine(result) + logLine
+		Expect(artifact.ParseResult(strings.NewReader(output))).To(Equal(result))
+	})
+
+	It("should ignore panic output", func() {
+		result := newResult(`{"kind":"VirtualMachine"}`)
+		output := resultLine(result) + "panic: oops\n\ngoroutine 1 [running]:\nmain.main()\n\t/main.go:1 +0x1\n{ not json\n"
+		Expect(artifact.ParseResult(strings.NewReader(output))).To(Equal(result))
+	})
+
+	It("should parse a result line longer than the default scanner buffer", func() {
+		result := newResult(`{"kind":"VirtualMachine","data":"` + strings.Repeat("x", 512*1024) + `"}`)
+		Expect(artifact.ParseResult(strings.NewReader(logLine + resultLine(result)))).To(Equal(result))
 	})
 
 	It("should not escape characters in the config that need no escaping", func() {
@@ -76,11 +83,26 @@ var _ = Describe("FetchResult", func() {
 		result := newResult(`{"kind":"VirtualMachine","data":"` + strings.Repeat("<&>", 512*1024/3) + `"}`)
 		line := resultLine(result)
 		Expect(line).To(ContainSubstring("<&>"))
-		Expect(decode(line)).To(Equal(result))
+		Expect(artifact.ParseResult(strings.NewReader(line))).To(Equal(result))
 	})
 
 	It("should reject a result over the line limit", func() {
 		result := newResult(`{"kind":"VirtualMachine","data":"` + strings.Repeat("x", 3*1024*1024) + `"}`)
 		Expect(artifact.WriteResult(&bytes.Buffer{}, result)).To(MatchError(artifact.ErrInvalidArtifact))
 	})
+
+	DescribeTable("should fail on", func(output, message string) {
+		_, err := artifact.ParseResult(strings.NewReader(output))
+		Expect(err).To(MatchError(ContainSubstring(message)))
+	},
+		Entry("no result", logLine+`{"level":"info","msg":"structured log"}`+"\n", "contains no result"),
+		Entry("a null result", logLine+`{"fetchResult":null}`+"\n", "holds no result"),
+		Entry("a malformed result", `{"fetchResult":{"artifactType":`+"\n", "invalid result line"),
+		Entry("an unsupported version", `{"fetchResult":{},"version":2}`+"\n", "unsupported result version 2"),
+		Entry("a missing version", `{"fetchResult":{}}`+"\n", "unsupported result version 0"),
+		Entry("several results", `{"fetchResult":{},"version":1}`+"\n"+`{"fetchResult":{},"version":1}`+"\n",
+			"more than one result"),
+		Entry("a line over the limit", `{"fetchResult":{"artifactType":"`+strings.Repeat("x", 3*1024*1024)+`"}}`+"\n",
+			"failed to read"),
+	)
 })

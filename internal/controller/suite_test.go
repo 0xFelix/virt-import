@@ -32,11 +32,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	virtv1 "kubevirt.io/api/core/v1"
+
+	templatev1beta1 "kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-import/internal/scheme"
 )
@@ -66,6 +71,9 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 
 	testScheme = scheme.New()
+	// The controller handles targets as unstructured, tests use them typed.
+	utilruntime.Must(virtv1.AddToScheme(testScheme))
+	utilruntime.Must(templatev1beta1.AddToScheme(testScheme))
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{

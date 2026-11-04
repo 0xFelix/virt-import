@@ -22,11 +22,17 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/discovery"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
@@ -35,27 +41,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	templatev1beta1 "kubevirt.io/virt-template-api/core/v1beta1"
-
 	"kubevirt.io/virt-import-api/core/v1alpha1"
 )
 
-const (
-	defaultPollInterval = 1 * time.Minute
+const defaultPollInterval = 1 * time.Minute
 
-	cdiGroupVersion      = "cdi.kubevirt.io/v1beta1"
-	templateGroupVersion = "template.kubevirt.io/v1beta1"
+var (
+	dataVolumesResource = cdiv1beta1.SchemeGroupVersion.WithResource("datavolumes")
+	cdiConfigsResource  = cdiv1beta1.SchemeGroupVersion.WithResource("cdiconfigs")
+
+	// CDI creates its CRDs one by one, so each resource is checked, not the group.
+	// template.kubevirt.io is optional, only VirtualMachineTemplate artifacts need it.
+	requiredResources = []schema.GroupVersionResource{
+		dataVolumesResource,
+		cdiConfigsResource,
+	}
 )
-
-// requiredGroups must exist before the import controller can start: it watches
-// and creates CDI DataVolumes for every disk in an artifact.
-//
-// template.kubevirt.io is deliberately absent. It is only needed when an
-// artifact's artifactType names a VirtualMachineTemplate, so it is treated as
-// optional and read without a cache, see ExternalCRDCacheConfig.
-var requiredGroups = []string{
-	cdiGroupVersion,
-}
 
 // AvailabilityController polls for required external CRDs and starts the
 // import controller once all are available. While waiting, it sets status
@@ -64,6 +65,8 @@ var requiredGroups = []string{
 type AvailabilityController struct {
 	Manager         ctrl.Manager
 	DiscoveryClient discovery.DiscoveryInterface
+	PodLogs         PodLogReader
+	FetcherImage    string
 
 	pollInterval time.Duration
 }
@@ -74,7 +77,8 @@ func (c *AvailabilityController) SetPollInterval(d time.Duration) {
 }
 
 func (c *AvailabilityController) Start(ctx context.Context) error {
-	if len(c.missingGroups()) == 0 {
+	missing := c.missingResources()
+	if len(missing) == 0 {
 		return c.startController(ctx)
 	}
 
@@ -82,7 +86,7 @@ func (c *AvailabilityController) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to add VirtualMachineImport informer: %w", err)
 	}
 
-	logf.FromContext(ctx).Info("Waiting for required CRDs to become available", "groups", requiredGroups)
+	logf.FromContext(ctx).Info("Waiting for required CRDs to become available", "missing", missing)
 
 	if c.pollInterval == 0 {
 		c.SetPollInterval(defaultPollInterval)
@@ -91,7 +95,7 @@ func (c *AvailabilityController) Start(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
-		missing := c.missingGroups()
+		missing = c.missingResources()
 		if len(missing) == 0 {
 			return c.startController(ctx)
 		}
@@ -108,9 +112,16 @@ func (c *AvailabilityController) Start(ctx context.Context) error {
 
 func (c *AvailabilityController) startController(ctx context.Context) error {
 	logf.FromContext(ctx).Info("All required CRDs are available, starting controller")
+	// The reconciler reads the CDIConfig from the cache, but does not watch it.
+	if _, err := c.Manager.GetCache().GetInformer(ctx, &cdiv1beta1.CDIConfig{}); err != nil {
+		return fmt.Errorf("failed to add CDIConfig informer: %w", err)
+	}
 	return (&VirtualMachineImportReconciler{
-		Client: c.Manager.GetClient(),
-		Scheme: c.Manager.GetScheme(),
+		Client:       c.Manager.GetClient(),
+		APIReader:    c.Manager.GetAPIReader(),
+		Scheme:       c.Manager.GetScheme(),
+		PodLogs:      c.PodLogs,
+		FetcherImage: c.FetcherImage,
 	}).SetupWithManager(c.Manager)
 }
 
@@ -135,50 +146,60 @@ func (c *AvailabilityController) setMissingCRDStatus(ctx context.Context, missin
 		vmImportCopy := vmImport.DeepCopy()
 		setReadyCondition(ctx, vmImport, metav1.ConditionFalse, v1alpha1.ReasonWaiting, "%s", message)
 		setProgressingCondition(ctx, vmImport, metav1.ConditionTrue, v1alpha1.ReasonWaiting)
+		if equality.Semantic.DeepEqual(vmImport.Status, vmImportCopy.Status) {
+			continue
+		}
 
 		if err := cl.Status().Patch(ctx, vmImport, client.MergeFrom(vmImportCopy)); err != nil {
 			log.Error(err, "Failed to update VirtualMachineImport status",
-				"namespace", vmImport.Namespace, "name", vmImport.Name)
+				logNS, vmImport.Namespace, logName, vmImport.Name)
 		}
 	}
 }
 
-func (c *AvailabilityController) missingGroups() []string {
+func (c *AvailabilityController) missingResources() []string {
 	var missing []string
-	for _, group := range requiredGroups {
-		if !isAPIGroupAvailable(c.DiscoveryClient, group) {
-			missing = append(missing, group)
+	for _, resource := range requiredResources {
+		if !isResourceServed(c.DiscoveryClient, resource) {
+			missing = append(missing, resource.GroupResource().String())
 		}
 	}
 	return missing
 }
 
-func isAPIGroupAvailable(dc discovery.DiscoveryInterface, groupVersion string) bool {
-	_, err := dc.ServerResourcesForGroupVersion(groupVersion)
-	return err == nil
+func isResourceServed(dc discovery.DiscoveryInterface, resource schema.GroupVersionResource) bool {
+	list, err := dc.ServerResourcesForGroupVersion(resource.GroupVersion().String())
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(list.APIResources, func(r metav1.APIResource) bool {
+		return r.Name == resource.Resource
+	})
 }
 
-// ExternalCRDCacheConfig builds the manager's cache configuration for CRDs that
-// may not be installed. Entries are only added for groups that actually exist,
-// since a cache.ByObject for a missing CRD fails manager construction.
+// ExternalCRDCacheConfig only adds entries for served resources, since a cache.ByObject for a
+// missing CRD fails manager construction.
 func ExternalCRDCacheConfig(
 	dc discovery.DiscoveryInterface,
-) (cacheByObject map[client.Object]cache.ByObject, clientDisableFor []client.Object) {
+) map[client.Object]cache.ByObject {
 	uidReq, _ := labels.NewRequirement(v1alpha1.LabelImportUID, selection.Exists, nil)
 	uidSelector := labels.NewSelector().Add(*uidReq)
 
-	cacheByObject = map[client.Object]cache.ByObject{}
+	// Only cache the children this controller created, not every object of their kind in the cluster.
+	cacheByObject := map[client.Object]cache.ByObject{
+		&batchv1.Job{}:      {Label: uidSelector},
+		&corev1.Pod{}:       {Label: uidSelector},
+		&corev1.ConfigMap{}: {Label: uidSelector},
+	}
 
-	// Only cache DataVolumes this controller created, not every DataVolume in the cluster.
-	if isAPIGroupAvailable(dc, cdiGroupVersion) {
+	if isResourceServed(dc, dataVolumesResource) {
 		cacheByObject[&cdiv1beta1.DataVolume{}] = cache.ByObject{Label: uidSelector}
 	}
-	// VirtualMachineTemplates are a create-only import target. Read them
-	// straight from the API server so no informer is started for a CRD that
-	// may not be installed.
-	if isAPIGroupAvailable(dc, templateGroupVersion) {
-		clientDisableFor = append(clientDisableFor, &templatev1beta1.VirtualMachineTemplate{})
+	if isResourceServed(dc, cdiConfigsResource) {
+		cacheByObject[&cdiv1beta1.CDIConfig{}] = cache.ByObject{
+			Field: fields.OneTermEqualSelector(nameField, cdiConfigName),
+		}
 	}
 
-	return cacheByObject, clientDisableFor
+	return cacheByObject
 }
