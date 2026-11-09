@@ -55,6 +55,9 @@ spec:
           - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager
+        env:
+        - name: FETCHER_IMAGE
+          value: fetcher:latest
         terminationMessagePolicy: FallbackToLogsOnError
         ports:
         - containerPort: 8443

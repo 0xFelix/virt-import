@@ -3,6 +3,11 @@ IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-import-controller:${VERSION}
 IMG_FETCHER ?= ${IMG_REGISTRY}/virt-import-fetcher:${VERSION}
+# Temporary: CDI with DataVolume layer selection (kubevirt/containerized-data-importer#4301),
+# the commit go.mod replaces the CDI API with. Drop together with that replace.
+export CDI_VERSION ?= source
+export CDI_REPO ?= https://github.com/Acedus/containerized-data-importer
+export CDI_REF ?= defc3b3d6c7f19f02a72f4a1e378078fe8a2124b
 # VERSION defaults to 'latest', which is not a semantic version; the CSV needs one.
 CSV_VERSION ?= 0.0.0
 CSV_NAMESPACE ?= kubevirt
@@ -113,6 +118,10 @@ cluster-sync: generate ## Install virt-import to the kubevirtci cluster running 
 cluster-functest: ## Run the functional tests on the kubevirtci cluster running a stable version of KubeVirt.
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
+.PHONY: cluster-envtest-crds
+cluster-envtest-crds: ## Pull the third-party CRDs envtest needs from the kubevirtci cluster running a stable version of KubeVirt.
+	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) ./hack/envtest-crds.sh
+
 .PHONY: kubevirt-up
 kubevirt-up: ## Start a kubevirtci cluster running a git version of KubeVirt.
 	./hack/kubevirt.sh up
@@ -131,6 +140,10 @@ kubevirt-sync: generate ## Install virt-import to the kubevirtci cluster running
 .PHONY: kubevirt-functest
 kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running a git version of KubeVirt.
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
+
+.PHONY: kubevirt-envtest-crds
+kubevirt-envtest-crds: ## Pull the third-party CRDs envtest needs from the kubevirtci cluster running a git version of KubeVirt.
+	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) ./hack/envtest-crds.sh
 
 ##@ Build
 
@@ -181,6 +194,7 @@ endif
 build-installer: manifests generate ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
 	$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) > dist/install.yaml
 	hack/strip-namespace.sh dist/install.yaml
@@ -189,6 +203,7 @@ build-installer: manifests generate ## Generate a consolidated YAML with CRDs an
 build-csv-manifests: manifests generate ## Render the manifests csv-generator builds the CSV from.
 	@mkdir -p _out
 	@$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	@$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
 	@$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
 	@$(call go-tool,kustomize,build $(CURDIR)/config/csv) > _out/manifests.yaml
 
@@ -200,6 +215,7 @@ csv: ## Print the ClusterServiceVersion, as HCO invokes csv-generator in the ima
 		--csv-version=$(CSV_VERSION) \
 		--namespace=$(CSV_NAMESPACE) \
 		--operator-image=$(IMG_CONTROLLER) \
+		--fetcher-image=$(IMG_FETCHER) \
 		--operator-version=$(VERSION)
 
 ##@ Deployment
@@ -219,10 +235,15 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster. Call with ignore-no
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster.
 	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) apply -f -
 
+# Deletes the imports first, while the controller still runs to remove their finalizers.
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	if $(KUBECTL) get crd virtualmachineimports.import.kubevirt.io >/dev/null 2>&1; then \
+		$(KUBECTL) delete virtualmachineimports.import.kubevirt.io --all --all-namespaces --timeout=5m; \
+	fi
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 

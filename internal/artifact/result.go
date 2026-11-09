@@ -20,8 +20,11 @@
 package artifact
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/opencontainers/go-digest"
@@ -80,6 +83,9 @@ func (r *FetchResult) DiskNames() []string {
 	return names
 }
 
+// resultPrefix starts every line WriteResult writes, telling it apart from logs and panics.
+const resultPrefix = `{"fetchResult":`
+
 // WriteResult writes result as a single {"fetchResult":...} line. A result over
 // maxResultLineSize is an invalid artifact.
 func WriteResult(w io.Writer, result *FetchResult) error {
@@ -95,4 +101,41 @@ func WriteResult(w io.Writer, result *FetchResult) error {
 	}
 	_, err := w.Write(buf.Bytes())
 	return err
+}
+
+// ParseResult finds the single line WriteResult wrote in the fetcher output. Every other line,
+// like a log line or a panic, is ignored.
+func ParseResult(r io.Reader) (*FetchResult, error) {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 0, bufio.MaxScanTokenSize), maxResultLineSize)
+
+	var found *FetchResult
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if !bytes.HasPrefix(line, []byte(resultPrefix)) {
+			continue
+		}
+		parsed := resultLine{}
+		if err := json.Unmarshal(line, &parsed); err != nil {
+			return nil, fmt.Errorf("invalid result line: %w", err)
+		}
+		if parsed.FetchResult == nil {
+			return nil, errors.New("the result line holds no result")
+		}
+		if parsed.Version != resultVersion {
+			return nil, fmt.Errorf("unsupported result version %d, expected %d", parsed.Version, resultVersion)
+		}
+		if found != nil {
+			return nil, errors.New("fetcher output contains more than one result")
+		}
+		found = parsed.FetchResult
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read fetcher output: %w", err)
+	}
+	if found == nil {
+		return nil, errors.New("fetcher output contains no result")
+	}
+
+	return found, nil
 }

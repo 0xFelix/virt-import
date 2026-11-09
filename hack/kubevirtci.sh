@@ -47,7 +47,7 @@ function kubevirtci::up() {
   KUBECONFIG=$(kubevirtci::kubeconfig)
   export KUBECONFIG
 
-  cdi::deploy "${_kubectl}"
+  cdi::deploy "${_kubectl}" "$(kubevirtci::registry)"
 
   echo "installing kubevirt..."
   ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
