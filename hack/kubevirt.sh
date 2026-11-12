@@ -31,6 +31,7 @@ _kubevirtcicli="${_base_dir}/_kubevirt/kubevirtci/cluster-up/cli.sh"
 _action=$1
 shift
 
+source "${_base_dir}/hack/cluster.sh"
 source "${_base_dir}/hack/cdi.sh"
 KUBEVIRT_DEPLOY_CDI="$(cdi::deploy_bundled)"
 export KUBEVIRT_DEPLOY_CDI
@@ -57,6 +58,9 @@ function kubevirt::up() {
     echo "patching kubevirt with vmStateStorageClass ${DEFAULT_STORAGE_CLASS}"
     ${_kubectl} patch -n kubevirt kubevirt kubevirt --type merge -p '{"spec": {"configuration": { "vmStateStorageClass": "'"$DEFAULT_STORAGE_CLASS"'" }}}'
   fi
+
+  # The functional tests import VMs exported as OCI artifacts.
+  cluster::enable_feature_gate "${_kubectl}" OCIExport
 
   echo "waiting for kubevirt to become ready, this can take a few minutes..."
   ${_kubectl} -n kubevirt wait kv kubevirt --for condition=Available --timeout=15m
