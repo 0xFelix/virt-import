@@ -36,6 +36,13 @@ github.com/davecgh/go-spew/spew
 # github.com/distribution/reference v0.6.0
 ## explicit; go 1.20
 github.com/distribution/reference
+# github.com/docker/cli v29.6.2+incompatible
+## explicit
+github.com/docker/cli/cli/config
+github.com/docker/cli/cli/config/configfile
+github.com/docker/cli/cli/config/credentials
+github.com/docker/cli/cli/config/memorystore
+github.com/docker/cli/cli/config/types
 # github.com/docker/distribution v2.8.3+incompatible
 ## explicit
 github.com/docker/distribution/registry/api/errcode
@@ -181,6 +188,32 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
+# github.com/google/go-containerregistry v0.21.6
+## explicit; go 1.25.0
+github.com/google/go-containerregistry/internal/and
+github.com/google/go-containerregistry/internal/compression
+github.com/google/go-containerregistry/internal/gzip
+github.com/google/go-containerregistry/internal/redact
+github.com/google/go-containerregistry/internal/retry
+github.com/google/go-containerregistry/internal/retry/wait
+github.com/google/go-containerregistry/internal/verify
+github.com/google/go-containerregistry/internal/zstd
+github.com/google/go-containerregistry/pkg/authn
+github.com/google/go-containerregistry/pkg/compression
+github.com/google/go-containerregistry/pkg/logs
+github.com/google/go-containerregistry/pkg/name
+github.com/google/go-containerregistry/pkg/v1
+github.com/google/go-containerregistry/pkg/v1/empty
+github.com/google/go-containerregistry/pkg/v1/layout
+github.com/google/go-containerregistry/pkg/v1/match
+github.com/google/go-containerregistry/pkg/v1/mutate
+github.com/google/go-containerregistry/pkg/v1/partial
+github.com/google/go-containerregistry/pkg/v1/remote
+github.com/google/go-containerregistry/pkg/v1/remote/internal/authchallenge
+github.com/google/go-containerregistry/pkg/v1/remote/transport
+github.com/google/go-containerregistry/pkg/v1/stream
+github.com/google/go-containerregistry/pkg/v1/tarball
+github.com/google/go-containerregistry/pkg/v1/types
 # github.com/google/pprof v0.0.0-20260402051712-545e8a4df936
 ## explicit; go 1.24.0
 github.com/google/pprof/profile
@@ -1266,6 +1299,10 @@ kubevirt.io/api/snapshot/v1alpha1
 kubevirt.io/api/snapshot/v1beta1
 # kubevirt.io/client-go v1.9.0
 ## explicit; go 1.24.0
+kubevirt.io/client-go/containerizeddataimporter
+kubevirt.io/client-go/containerizeddataimporter/scheme
+kubevirt.io/client-go/containerizeddataimporter/typed/core/v1beta1
+kubevirt.io/client-go/containerizeddataimporter/typed/upload/v1beta1
 kubevirt.io/client-go/kubevirt
 kubevirt.io/client-go/kubevirt/scheme
 kubevirt.io/client-go/kubevirt/typed/backup/v1alpha1
@@ -1287,6 +1324,8 @@ kubevirt.io/client-go/subresources
 ## explicit; go 1.25.0
 kubevirt.io/containerized-data-importer-api/pkg/apis/core
 kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1
+kubevirt.io/containerized-data-importer-api/pkg/apis/upload
+kubevirt.io/containerized-data-importer-api/pkg/apis/upload/v1beta1
 # kubevirt.io/controller-lifecycle-operator-sdk/api v0.2.4
 ## explicit; go 1.17
 kubevirt.io/controller-lifecycle-operator-sdk/api
@@ -1301,7 +1340,16 @@ kubevirt.io/qe-tools/pkg/polarion-xml
 # kubevirt.io/virt-template-api v0.2.4
 ## explicit; go 1.24.0
 kubevirt.io/virt-template-api/core
+kubevirt.io/virt-template-api/core/subresourcesv1alpha1
+kubevirt.io/virt-template-api/core/subresourcesv1beta1
+kubevirt.io/virt-template-api/core/v1alpha1
 kubevirt.io/virt-template-api/core/v1beta1
+# kubevirt.io/virt-template-client-go v0.2.4
+## explicit; go 1.24.0
+kubevirt.io/virt-template-client-go/virttemplate
+kubevirt.io/virt-template-client-go/virttemplate/scheme
+kubevirt.io/virt-template-client-go/virttemplate/typed/core/v1alpha1
+kubevirt.io/virt-template-client-go/virttemplate/typed/core/v1beta1
 # sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.36.0
 ## explicit; go 1.24.0
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client
