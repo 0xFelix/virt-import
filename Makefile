@@ -218,6 +218,15 @@ csv: ## Print the ClusterServiceVersion, as HCO invokes csv-generator in the ima
 		--fetcher-image=$(IMG_FETCHER) \
 		--operator-version=$(VERSION)
 
+.PHONY: build-installer-hco
+build-installer-hco: manifests generate ## Generate the YAML bundle the hyperconverged-cluster-operator embeds.
+	mkdir -p dist
+	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
+	$(call go-tool,kustomize,build $(CURDIR)/config/hco) > dist/install-hco.yaml
+	hack/strip-namespace.sh dist/install-hco.yaml
+
 ##@ Deployment
 
 ifndef IGNORE_NOT_FOUND
