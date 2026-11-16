@@ -3,7 +3,6 @@ module kubevirt.io/virt-import
 go 1.26.3
 
 require (
-	github.com/blang/semver/v4 v4.0.0
 	github.com/distribution/reference v0.6.0
 	github.com/go-logr/logr v1.4.4
 	github.com/klauspost/compress v1.19.1
@@ -11,7 +10,6 @@ require (
 	github.com/onsi/gomega v1.43.1
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
-	github.com/operator-framework/api v0.45.0
 	go.podman.io/image/v5 v5.41.2
 	k8s.io/api v0.37.0
 	k8s.io/apimachinery v0.37.0
@@ -27,7 +25,6 @@ require (
 	kubevirt.io/virt-template-api v0.2.4
 	sigs.k8s.io/cluster-api v1.14.3
 	sigs.k8s.io/controller-runtime v0.25.1
-	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
@@ -36,6 +33,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
@@ -142,6 +140,7 @@ require (
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
+	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 replace (
