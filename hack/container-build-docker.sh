@@ -26,7 +26,7 @@ fi
 
 IFS=',' read -r -a PLATFORM_LIST <<< "${PLATFORMS}"
 
-BUILD_ARGS=(--build-arg BUILD_ARCH="${BUILD_ARCH}" -f "${CONTAINERFILE}" -t "${IMG}" --push .)
+BUILD_ARGS=(--build-arg BUILD_ARCH="${BUILD_ARCH}" -f "${CONTAINERFILE}" -t "${IMG}" --push "${CONTEXT:-.}")
 
 if [ ${#PLATFORM_LIST[@]} -eq 1 ]; then
   docker build --platform "${PLATFORMS}" "${BUILD_ARGS[@]}"
