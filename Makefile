@@ -8,9 +8,6 @@ IMG_FETCHER ?= ${IMG_REGISTRY}/virt-import-fetcher:${VERSION}
 export CDI_VERSION ?= source
 export CDI_REPO ?= https://github.com/Acedus/containerized-data-importer
 export CDI_REF ?= defc3b3d6c7f19f02a72f4a1e378078fe8a2124b
-# VERSION defaults to 'latest', which is not a semantic version; the CSV needs one.
-CSV_VERSION ?= 0.0.0
-CSV_NAMESPACE ?= kubevirt
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -162,7 +159,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 container-build: container-build-controller container-build-fetcher ## Build container images.
 
 .PHONY: container-build-controller
-container-build-controller: build-csv-manifests ## Build container image with the controller.
+container-build-controller: ## Build container image with the controller.
 	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_CONTROLLER),Dockerfile)
 
 .PHONY: container-build-fetcher
@@ -212,24 +209,14 @@ build-installer: manifests generate ## Generate a consolidated YAML with CRDs an
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) > dist/install.yaml
 	hack/strip-namespace.sh dist/install.yaml
 
-.PHONY: build-csv-manifests
-build-csv-manifests: manifests generate ## Render the manifests csv-generator builds the CSV from.
-	@mkdir -p _out
-	@$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
-	@$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
-	@$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
-	@$(call go-tool,kustomize,build $(CURDIR)/config/csv) > _out/manifests.yaml
-
-.PHONY: csv
-csv: ## Print the ClusterServiceVersion, as HCO invokes csv-generator in the image.
-	@$(MAKE) --no-print-directory build-csv-manifests >/dev/null
-	@go run ./cmd/csv-generator \
-		--manifests-file=_out/manifests.yaml \
-		--csv-version=$(CSV_VERSION) \
-		--namespace=$(CSV_NAMESPACE) \
-		--operator-image=$(IMG_CONTROLLER) \
-		--fetcher-image=$(IMG_FETCHER) \
-		--operator-version=$(VERSION)
+.PHONY: build-installer-hco
+build-installer-hco: manifests generate ## Generate the YAML bundle the hyperconverged-cluster-operator embeds.
+	mkdir -p dist
+	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set configmap fetcher-image --from-literal=image=${IMG_FETCHER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set annotation import.kubevirt.io/virt-import-version:${VERSION},$(CURDIR)/config/components/version)
+	$(call go-tool,kustomize,build $(CURDIR)/config/hco) > dist/install-hco.yaml
+	hack/strip-namespace.sh dist/install-hco.yaml
 
 ##@ Deployment
 

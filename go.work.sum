@@ -170,6 +170,7 @@ golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2d
 golang.org/x/crypto v0.55.0/go.mod h1:uq0V9dE/fzQuJtbnL+2EhWOE63vo164FY8xqEnV9xis=
 golang.org/x/crypto v0.56.0/go.mod h1:OMW5y6CY9l38uPLmxU6l6pwcXp1obtLo3e6gT7gQR2I=
 golang.org/x/lint v0.0.0-20241112194109-818c5a804067/go.mod h1:3xt1FjdF8hUf6vQPIChWIBhFzV8gjjsPE/fR3IyQdNY=
+golang.org/x/net v0.57.0/go.mod h1:KpXc8iv+r3XplLAG/f7Jsf9RPszJzdR0f58q9vGOuEU=
 golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959/go.mod h1:LV7u5Oco+Z/g6XI7PqN+EUUUGGkEcmB1uj2ceI0fOVg=
 golang.org/x/tools/go/expect v0.1.1-deprecated/go.mod h1:eihoPOH+FgIqa3FpoTwguz/bVUSGBlGQU67vpBeOrBY=
 google.golang.org/genproto v0.0.0-20250528174236-200df99c418a h1:KXuwdBmgjb4T3l4ZzXhP6HxxFKXD9FcK5/8qfJI4WwU=

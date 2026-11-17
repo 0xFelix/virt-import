@@ -21,22 +21,14 @@ COPY vendor/ vendor/
 # Build
 RUN --mount=type=cache,id="virt-import",target="/root/.cache/go-build" \
     mkdir -p bin && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o bin/manager cmd/main.go && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o bin/csv-generator ./cmd/csv-generator
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o bin/manager cmd/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM --platform=linux/${TARGETARCH} gcr.io/distroless/static:nonroot
 
-# Tells the hyperconverged-cluster-operator where to find csv-generator when it
-# runs this image with that binary as the entrypoint.
-LABEL org.kubevirt.hco.csv-generator.v1="/csv-generator"
-
 WORKDIR /
 COPY --from=builder /workspace/bin/manager .
-COPY --from=builder /workspace/bin/csv-generator .
-# Rendered by 'make build-csv-manifests'; csv-generator builds the CSV from it.
-COPY _out/manifests.yaml /data/manifests.yaml
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

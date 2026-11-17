@@ -55,6 +55,7 @@ function build_release_artifacts() {
     export VERSION="${TARGET_TAG}"
     make
     make build-installer
+    make build-installer-hco
     make container-build
     make container-push
     sha256sum dist/install*.yaml | sed 's|  .*/|  |' > dist/CHECKSUMS.sha256
@@ -74,6 +75,7 @@ function update_github_release() {
 
     gh release upload --repo "${GITHUB_REPOSITORY}" --clobber "${TARGET_TAG}" \
         dist/install.yaml \
+        dist/install-hco.yaml \
         dist/CHECKSUMS.sha256
 }
 

@@ -1,0 +1,57 @@
+# Bundle consumed by the hyperconverged-cluster-operator (HCO), rendered by
+# 'make build-installer-hco' into dist/install-hco.yaml.
+#
+# HCO embeds this file and deploys everything in it at runtime, the CRD
+# included. It rewrites the namespace, replaces both image references from its
+# own environment and adds its labels and node placement.
+#
+# Unlike config/default this overlay carries no metrics, cert-manager or
+# network policies:
+# - Without the metrics deployment patches the manager leaves
+#   --metrics-bind-address at its default of "0" and serves no metrics, so it
+#   needs no serving certificate and no metrics RBAC.
+# - Egress to DNS and the API server is allowed by HCO's network policies,
+#   which select the np.kubevirt.io/allow-access-cluster-services label added
+#   below.
+
+# Placeholder, HCO deploys into its own namespace.
+namespace: kubevirt
+
+namePrefix: virt-import-
+
+resources:
+- ../crd
+- ../rbac
+- ../manager
+- ../admission
+
+components:
+- ../components/version
+
+patches:
+# The metrics RBAC protects an endpoint this bundle does not serve.
+- patch: |-
+    $patch: delete
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: metrics-auth-role
+- patch: |-
+    $patch: delete
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: metrics-auth-rolebinding
+- patch: |-
+    $patch: delete
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: metrics-reader
+- target:
+    kind: Deployment
+    name: controller
+  patch: |-
+    - op: add
+      path: /spec/template/metadata/labels/np.kubevirt.io~1allow-access-cluster-services
+      value: "true"
