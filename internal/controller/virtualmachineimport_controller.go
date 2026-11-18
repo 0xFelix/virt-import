@@ -709,30 +709,43 @@ func (r *VirtualMachineImportReconciler) reconcileDataVolumes(
 ) (bool, error) {
 	setProgressingCondition(ctx, vmImport, metav1.ConditionTrue, v1alpha1.ReasonImportingDisks)
 
-	vmImport.Status.DiskImports = make([]v1alpha1.DiskImportStatus, 0, len(fetchResult.Layers))
+	diskImports := make([]v1alpha1.DiskImportStatus, 0, len(fetchResult.Layers))
 	var waitingFor *cdiv1beta1.DataVolume
+	var failedDv *cdiv1beta1.DataVolume
 	for _, layer := range fetchResult.Layers {
 		dv, err := r.ensureDataVolume(ctx, vmImport, fetchResult, &layer)
 		if err != nil {
 			return false, err
 		}
-		vmImport.Status.DiskImports = append(vmImport.Status.DiskImports, v1alpha1.DiskImportStatus{
+		diskImports = append(diskImports, v1alpha1.DiskImportStatus{
 			Name:           layer.DiskName,
 			DataVolumeName: dv.Name,
 			Phase:          string(dv.Status.Phase),
 			Progress:       string(dv.Status.Progress),
 		})
-		if dv.Status.Phase == cdiv1beta1.Succeeded {
+		//nolint:exhaustive
+		switch dv.Status.Phase {
+		case cdiv1beta1.Succeeded:
 			continue
-		}
-		// A DataVolume is failed the way virt-template judges it. While CDI retries a failed
-		// import, which it does without ever failing the DataVolume, Running tells why.
-		if notRunning := notRunningCondition(dv); notRunning != nil && dv.Status.Phase == cdiv1beta1.Failed {
-			return false, failImport(ctx, vmImport, fmt.Errorf("dataVolume %s/%s failed: %s", dv.Namespace, dv.Name, notRunning.Message))
-		}
-		if waitingFor == nil {
+		case cdiv1beta1.Failed:
+			failedDv = dv
+		default:
 			waitingFor = dv
 		}
+	}
+	vmImport.Status.DiskImports = diskImports
+
+	if failedDv != nil {
+		// A DataVolume is failed the way virt-template judges it. While CDI retries a failed
+		// import, which it does without ever failing the DataVolume, Running tells why.
+		message := "unknown reason"
+		if notRunning := notRunningCondition(failedDv); notRunning != nil {
+			message = notRunning.Message
+		}
+
+		return false, failImport(ctx, vmImport, fmt.Errorf(
+			"dataVolume %s/%s failed: %s", failedDv.Namespace, failedDv.Name, message,
+		))
 	}
 
 	if waitingFor != nil {

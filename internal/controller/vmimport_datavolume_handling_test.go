@@ -21,11 +21,13 @@ package controller_test
 
 import (
 	"context"
+	"errors"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -192,6 +194,64 @@ var _ = Describe("VirtualMachineImport controller DataVolume handling", func() {
 		_, err = reconcileImport(reconciler, vmImport)
 		Expect(err).To(MatchError(ContainSubstring("does not support layer selection")))
 		expectCondition(vmImport, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonImportFailed)
+	})
+
+	It("should keep the recorded disks when a later DataVolume errors", func() {
+		vmImport := createImport(k8sClient, testNamespace)
+		completeFetch(reconciler, vmImport, fixtureResult(artifacttest.VMMultiDisk, ""))
+		expectedDiskImports := []v1alpha1.DiskImportStatus{
+			{Name: artifacttest.RootDisk, DataVolumeName: dataVolumeKey(vmImport, artifacttest.RootDisk).Name},
+			{Name: artifacttest.DataDisk, DataVolumeName: dataVolumeKey(vmImport, artifacttest.DataDisk).Name},
+		}
+		Expect(vmImport.Status.DiskImports).To(Equal(expectedDiskImports))
+
+		// The second DataVolume fails to read transiently, so the reconcile aborts partway through.
+		watchClient, err := client.NewWithWatch(cfg, client.Options{Scheme: testScheme})
+		Expect(err).ToNot(HaveOccurred())
+		dataDisk := dataVolumeKey(vmImport, artifacttest.DataDisk).Name
+		reconciler.Client = interceptor.NewClient(watchClient, interceptor.Funcs{
+			Get: func(ctx context.Context, cli client.WithWatch, key client.ObjectKey, obj client.Object,
+				opts ...client.GetOption,
+			) error {
+				if _, ok := obj.(*cdiv1beta1.DataVolume); ok && key.Name == dataDisk {
+					return k8serrors.NewInternalError(errors.New("transient"))
+				}
+				return cli.Get(ctx, key, obj, opts...)
+			},
+		})
+
+		_, err = reconcileImport(reconciler, vmImport)
+		Expect(err).To(MatchError(ContainSubstring("transient")))
+		// The partial list is discarded, so the disks recorded earlier are not dropped.
+		Expect(vmImport.Status.DiskImports).To(Equal(expectedDiskImports))
+	})
+
+	It("should fail the import when a later DataVolume failed while an earlier one is still importing", func() {
+		vmImport := createImport(k8sClient, testNamespace)
+		completeFetch(reconciler, vmImport, fixtureResult(artifacttest.VMMultiDisk, ""))
+
+		// The earlier disk is still importing, but a later one has already failed.
+
+		const failureMessage = "Unable to connect to registry data source"
+		setDataVolumeStatus(k8sClient, getImportDataVolume(vmImport, artifacttest.RootDisk),
+			cdiv1beta1.ImportInProgress, true, "")
+		failedDv := getImportDataVolume(vmImport, artifacttest.DataDisk)
+		setDataVolumeStatus(k8sClient, failedDv, cdiv1beta1.Failed, false, failureMessage)
+
+		failureError := "dataVolume " + failedDv.Namespace + "/" + failedDv.Name + " failed"
+
+		_, err := reconcileImport(reconciler, vmImport)
+		Expect(err).To(MatchError(ContainSubstring(failureError)))
+		Expect(err).To(MatchError(ContainSubstring(failureMessage)))
+
+		// The failed disk wins over the one still importing instead of the import going on waiting.
+		expectCondition(vmImport, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonImportFailed)
+		expectCondition(vmImport, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonImportFailed, ContainSubstring(failureError))
+		// Both disks stay recorded, including the one that is still importing.
+		Expect(vmImport.Status.DiskImports).To(ConsistOf(
+			HaveField("Phase", string(cdiv1beta1.ImportInProgress)),
+			HaveField("Phase", string(cdiv1beta1.Failed)),
+		))
 	})
 })
 
