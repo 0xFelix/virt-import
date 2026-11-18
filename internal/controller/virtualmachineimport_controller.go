@@ -791,6 +791,11 @@ func (r *VirtualMachineImportReconciler) reconcileTarget(
 	if k8serrors.IsAlreadyExists(err) || meta.IsNoMatchError(err) {
 		err = r.checkTargetAvailable(ctx, vmImport, target)
 	}
+	// An Invalid spec never succeeds on a retry, so the import is failed instead of requeued forever.
+	if k8serrors.IsInvalid(err) {
+		return failImport(ctx, vmImport, fmt.Errorf("cannot create import target %s %s/%s: %w",
+			target.GetKind(), target.GetNamespace(), target.GetName(), err))
+	}
 	if err != nil {
 		return err
 	}
