@@ -51,8 +51,8 @@ function kubevirtci::up() {
   cdi::deploy "${_kubectl}" "$(kubevirtci::registry)"
 
   echo "installing kubevirt..."
-  ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
-  ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
+  ${_kubectl} create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
+  ${_kubectl} create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
 
   # Get the default storage class to patch vmStateStorageClass
   DEFAULT_STORAGE_CLASS=$(${_kubectl} get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
