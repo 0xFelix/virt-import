@@ -22,17 +22,20 @@ package controller_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	virtv1 "kubevirt.io/api/core/v1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
@@ -156,6 +159,33 @@ var _ = Describe("VirtualMachineImport controller target handling", func() {
 		_, err = reconcileImport(reconciler, vmImport)
 		Expect(err).To(MatchError(ContainSubstring("API group kubevirt.io is not available")))
 		expectCondition(vmImport, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonImportFailed)
+	})
+
+	It("should permanently fail when the target create is invalid", func() {
+		vmImport := createImport(k8sClient, testNamespace, withTargetName(testTargetName))
+		completeFetch(reconciler, vmImport, fixtureResult(artifacttest.VMSingle, ""))
+		completeDataVolumes(k8sClient, vmImport)
+
+		createErr := k8serrors.NewInvalid(
+			virtv1.VirtualMachineGroupVersionKind.GroupKind(), testTargetName, nil,
+		)
+		watchClient, err := client.NewWithWatch(cfg, client.Options{Scheme: testScheme})
+		Expect(err).ToNot(HaveOccurred())
+		reconciler.Client = interceptor.NewClient(watchClient, interceptor.Funcs{
+			Create: func(ctx context.Context, cli client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+				if _, ok := obj.(*unstructured.Unstructured); ok {
+					return createErr
+				}
+				return cli.Create(ctx, obj, opts...)
+			},
+		})
+
+		_, err = reconcileImport(reconciler, vmImport)
+		Expect(err).To(MatchError(ContainSubstring("cannot create import target VirtualMachine")))
+		// An invalid create never succeeds on a retry, so the import fails permanently.
+		Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+		expectCondition(vmImport, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonImportFailed)
+		Expect(vmImport.Status.TargetRef).To(BeNil())
 	})
 
 	It("should complete when its own target exists already", func() {
