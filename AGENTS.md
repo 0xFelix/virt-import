@@ -282,8 +282,7 @@ HCO injects what depends on the cluster:
   uses the token in the `metrics-token` Secret
 - the ServiceMonitor namespace selector and endpoint TLS and auth
 
-Egress to DNS and the API server is allowed by HCO's network policies, which select the
-`np.kubevirt.io/allow-access-cluster-services` label the overlay adds to the pod.
+HCO builds the network policy that allows egress to DNS and the API server.
 
 ## Temporary solutions
 

@@ -12,9 +12,8 @@
 # - the ServiceMonitor TLS and auth settings, which are stripped below.
 #
 # Unlike config/default this overlay carries no cert-manager resources and no
-# egress network policies. Egress to DNS and the API server is allowed by HCO's
-# network policies, which select the np.kubevirt.io/allow-access-cluster-services
-# label added below.
+# egress network policies. HCO builds the network policy that allows egress to
+# DNS and the API server.
 
 # Placeholder, HCO deploys into its own namespace.
 namespace: kubevirt
@@ -38,13 +37,6 @@ components:
 - ../components/version
 
 patches:
-- target:
-    kind: Deployment
-    name: controller
-  patch: |-
-    - op: add
-      path: /spec/template/metadata/labels/np.kubevirt.io~1allow-access-cluster-services
-      value: "true"
 # HCO sets the scrape TLS and auth per platform.
 - target:
     kind: ServiceMonitor
