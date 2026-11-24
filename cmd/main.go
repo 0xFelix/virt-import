@@ -31,6 +31,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apiserver/pkg/server/dynamiccertificates"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
@@ -42,6 +44,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"kubevirt.io/virt-import/internal/controller"
+	"kubevirt.io/virt-import/internal/metricsauth"
 	"kubevirt.io/virt-import/internal/scheme"
 	// +kubebuilder:scaffold:imports
 )
@@ -59,6 +62,7 @@ func main() {
 	var cipherSuites string
 	var minTLSVersion string
 	var tlsCurvePreferences string
+	var metricsClientCAConfigMap, metricsAllowedClientCN string
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -72,6 +76,14 @@ func main() {
 		"The directory that contains the metrics server certificate.")
 	flag.StringVar(&metricsCertName, "metrics-cert-name", "tls.crt", "The name of the metrics server certificate file.")
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
+	flag.StringVar(&metricsClientCAConfigMap, "metrics-client-ca-configmap", "",
+		"<namespace>/<name> of a ConfigMap whose 'client-ca-file' key holds the CA for metrics client certificates. "+
+			"If set, clients with a certificate from this CA and the common name from --metrics-allowed-client-cn "+
+			"are allowed without calling the API server. Clients without a certificate still use a bearer token, "+
+			"clients with a certificate that does not verify are rejected.")
+	flag.StringVar(&metricsAllowedClientCN, "metrics-allowed-client-cn", "",
+		"The common name of the metrics client certificate to allow, e.g. "+
+			"system:serviceaccount:openshift-monitoring:prometheus-k8s.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics server")
 
@@ -122,6 +134,8 @@ func main() {
 	tlsOpts = appendCipherSuites(setupLog, tlsOpts, cipherSuites)
 	tlsOpts = appendMinTLSVersion(setupLog, tlsOpts, minTLSVersion)
 	tlsOpts = appendTLSCurvePreferences(setupLog, tlsOpts, tlsCurvePreferences)
+	clientCANamespace, clientCAName := parseMetricsClientCAFlags(setupLog,
+		metricsClientCAConfigMap, metricsAllowedClientCN, secureMetrics && metricsAddr != "0")
 
 	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
 	// More info:
@@ -141,6 +155,21 @@ func main() {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
+	cfg := ctrl.GetConfigOrDie()
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "Failed to create Kubernetes client")
+		os.Exit(1)
+	}
+
+	var clientCA *dynamiccertificates.ConfigMapCAController
+	if clientCAName != "" {
+		clientCA = newClientCAController(setupLog, kubeClient, clientCANamespace, clientCAName)
+		metricsServerOptions.TLSOpts = append(metricsServerOptions.TLSOpts, metricsauth.RequestClientCert)
+		metricsServerOptions.FilterProvider = metricsauth.FilterProvider(clientCA.VerifyOptions, metricsAllowedClientCN,
+			metricsServerOptions.FilterProvider)
+	}
+
 	// If the certificate is not specified, controller-runtime will automatically
 	// generate self-signed certificates for the metrics server. While convenient for development and testing,
 	// this setup is not recommended for production.
@@ -158,7 +187,6 @@ func main() {
 		metricsServerOptions.KeyName = metricsCertKey
 	}
 
-	cfg := ctrl.GetConfigOrDie()
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(cfg)
 	cacheByObject := controller.ExternalCRDCacheConfig(discoveryClient)
 
@@ -181,10 +209,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		setupLog.Error(err, "Failed to create Kubernetes client")
-		os.Exit(1)
+	if clientCA != nil {
+		if err := mgr.Add(metricsauth.ClientCARunnable(clientCA.Run)); err != nil {
+			setupLog.Error(err, "Failed to add the metrics client CA controller")
+			os.Exit(1)
+		}
 	}
 
 	// The availability controller registers VirtualMachineImportReconciler once
@@ -282,4 +311,36 @@ func appendTLSCurvePreferences(
 		c.CurvePreferences = curvePreferences
 	}
 	return append(tlsOpts, setCurvePreferences)
+}
+
+// parseMetricsClientCAFlags returns the namespace and name of the metrics client CA ConfigMap, or
+// empty strings if it is not set. It exits if the flags are inconsistent. secureServing tells if
+// metrics are served over HTTPS.
+func parseMetricsClientCAFlags(setupLog logr.Logger, configMap, allowedCN string, secureServing bool,
+) (namespace, name string) {
+	if configMap == "" && allowedCN == "" {
+		return "", ""
+	}
+	namespace, name, ok := strings.Cut(configMap, "/")
+	if !ok || len(validation.IsDNS1123Label(namespace)) != 0 || len(validation.IsDNS1123Subdomain(name)) != 0 ||
+		allowedCN == "" || !secureServing {
+		setupLog.Error(nil, "--metrics-client-ca-configmap=<namespace>/<name> and --metrics-allowed-client-cn "+
+			"must be set together, with --metrics-secure and --metrics-bind-address", "configmap", configMap, "cn", allowedCN)
+		os.Exit(1)
+	}
+	return namespace, name
+}
+
+// newClientCAController returns a controller that keeps the metrics client CA from the ConfigMap
+// namespace/name up to date.
+func newClientCAController(setupLog logr.Logger, kubeClient kubernetes.Interface, namespace, name string,
+) *dynamiccertificates.ConfigMapCAController {
+	clientCA, err := dynamiccertificates.NewDynamicCAFromConfigMapController(
+		"metrics-client-ca", namespace, name, "client-ca-file", kubeClient,
+	)
+	if err != nil {
+		setupLog.Error(err, "Failed to create the metrics client CA controller")
+		os.Exit(1)
+	}
+	return clientCA
 }
