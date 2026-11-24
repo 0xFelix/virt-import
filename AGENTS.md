@@ -244,8 +244,9 @@ Kustomize for both the standalone install and the bundle HCO deploys. No Helm, n
 
 - `config/default` - cert-manager issues the metrics cert. Used by `make deploy` and
   `dist/install.yaml`.
-- `config/hco` - the HCO bundle: CRD, RBAC, aggregated roles, manager and admission policy, no
-  metrics, cert-manager or network policies. Rendered by `make build-installer-hco` into
+- `config/hco` - the HCO bundle: CRD, RBAC, aggregated roles, manager, admission policy, metrics
+  Service, ServiceMonitor, metrics ingress network policy and a metrics token Secret, no
+  cert-manager or egress network policies. Rendered by `make build-installer-hco` into
   `dist/install-hco.yaml`, a release asset like `install.yaml`.
 
 ### HCO bundle
@@ -261,14 +262,28 @@ can still remove the finalizers.
 Contract with HCO, which rejects a bundle that breaks it:
 
 - kinds: CRD, ServiceAccount, (Cluster)Role, (Cluster)RoleBinding, Deployment,
-  ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding
+  ValidatingAdmissionPolicy, ValidatingAdmissionPolicyBinding, Service, Secret, ServiceMonitor and
+  NetworkPolicy
 - exactly one Deployment, with exactly one container named `manager`, which has a `FETCHER_IMAGE`
-  env var
+  env var, and a `metrics-certs` volume from a Secret
+- exactly one Service, and exactly one ServiceMonitor selecting it, with one endpoint and no
+  `tlsConfig`, `authorization` or `bearerTokenFile`
+- Secrets only of type `kubernetes.io/service-account-token`, without data
+- NetworkPolicies only for ingress, selecting the manager pods
 - RBAC changes need the same rules in HCO's ClusterRole, a unit test in HCO enforces it
 
-Without the metrics patches the manager leaves `--metrics-bind-address` at `0`, needing no cert and
-no cert-manager. Egress to DNS and the API server is allowed by HCO's network policies, which select
-the `np.kubevirt.io/allow-access-cluster-services` label the overlay adds to the pod.
+HCO injects what depends on the cluster:
+
+- the serving certificate in a Secret named `virt-import-metrics-server-cert`, mounted as the
+  `metrics-certs` volume, from service-ca on OpenShift and from cert-manager on Kubernetes
+- `--tls-min-version`, `--tls-cipher-suites` and `--tls-curve-preferences` from its TLS profile
+- on OpenShift `--metrics-client-ca-configmap` and `--metrics-allowed-client-cn`, so Prometheus
+  authenticates with its client certificate without calls to the API server; elsewhere Prometheus
+  uses the token in the `metrics-token` Secret
+- the ServiceMonitor namespace selector and endpoint TLS and auth
+
+Egress to DNS and the API server is allowed by HCO's network policies, which select the
+`np.kubevirt.io/allow-access-cluster-services` label the overlay adds to the pod.
 
 ## Temporary solutions
 
