@@ -5,14 +5,16 @@
 # included. It rewrites the namespace, replaces both image references from its
 # own environment and adds its labels and node placement.
 #
-# Unlike config/default this overlay carries no metrics, cert-manager or
-# network policies:
-# - Without the metrics deployment patches the manager leaves
-#   --metrics-bind-address at its default of "0" and serves no metrics, so it
-#   needs no serving certificate and no metrics RBAC.
-# - Egress to DNS and the API server is allowed by HCO's network policies,
-#   which select the np.kubevirt.io/allow-access-cluster-services label added
-#   below.
+# The manager serves metrics on :8443. HCO injects what depends on the cluster:
+# - the serving certificate in the metrics-certs volume (service-ca on
+#   OpenShift, cert-manager on Kubernetes);
+# - the TLS profile and, on OpenShift, the client certificate flags;
+# - the ServiceMonitor TLS and auth settings, which are stripped below.
+#
+# Unlike config/default this overlay carries no cert-manager resources and no
+# egress network policies. Egress to DNS and the API server is allowed by HCO's
+# network policies, which select the np.kubevirt.io/allow-access-cluster-services
+# label added below.
 
 # Placeholder, HCO deploys into its own namespace.
 namespace: kubevirt
@@ -24,30 +26,18 @@ resources:
 - ../rbac
 - ../manager
 - ../admission
+- ../metrics
+- ../prometheus
+- ../network-policy/ingress
+- metrics_reader_service_account.yaml
+- metrics_token_secret.yaml
+- metrics_reader_role_binding.yaml
 
 components:
+- ../components/deployment-patches
 - ../components/version
 
 patches:
-# The metrics RBAC protects an endpoint this bundle does not serve.
-- patch: |-
-    $patch: delete
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: ClusterRole
-    metadata:
-      name: metrics-auth-role
-- patch: |-
-    $patch: delete
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: ClusterRoleBinding
-    metadata:
-      name: metrics-auth-rolebinding
-- patch: |-
-    $patch: delete
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: ClusterRole
-    metadata:
-      name: metrics-reader
 - target:
     kind: Deployment
     name: controller
@@ -55,3 +45,24 @@ patches:
     - op: add
       path: /spec/template/metadata/labels/np.kubevirt.io~1allow-access-cluster-services
       value: "true"
+# HCO sets the scrape TLS and auth per platform.
+- target:
+    kind: ServiceMonitor
+    name: controller-manager-metrics-monitor
+  patch: |-
+    - op: remove
+      path: /spec/endpoints/0/tlsConfig
+    - op: remove
+      path: /spec/endpoints/0/bearerTokenFile
+
+replacements:
+- source:
+    kind: ServiceAccount
+    name: metrics-reader
+    fieldPath: metadata.name
+  targets:
+  - select:
+      kind: Secret
+      name: metrics-token
+    fieldPaths:
+    - metadata.annotations.[kubernetes.io/service-account.name]
