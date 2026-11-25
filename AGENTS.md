@@ -268,7 +268,7 @@ Contract with HCO, which rejects a bundle that breaks it:
   env var, and a `metrics-certs` volume from a Secret
 - exactly one Service, and exactly one ServiceMonitor selecting it, with one endpoint and no
   `tlsConfig`, `authorization` or `bearerTokenFile`
-- Secrets only of type `kubernetes.io/service-account-token`, without data
+- at most one Secret, of type `kubernetes.io/service-account-token`, without data
 - NetworkPolicies only for ingress, selecting the manager pods
 - RBAC changes need the same rules in HCO's ClusterRole, a unit test in HCO enforces it
 
