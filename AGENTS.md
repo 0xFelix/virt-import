@@ -292,7 +292,6 @@ Each item below works around something unmerged or unreleased. Resolve it when i
 |---|---|---|
 | CDI #4301 (layer selection) | `go.mod` `replace` of the CDI API to the merge commit, `CDI_VERSION` default deploys the nightly built from it (see "Temporary CDI API") | CDI release: drop the `replace` and the CDI defaults, bump to the tag, refresh the envtest CRDs with `make cluster-envtest-crds`, name the minimum CDI version in README.md |
 | CDI in e2e | Makefile defaults `CDI_VERSION` to the nightly of the `replace` commit | Release: pin the tag |
-| KubeVirt export PRs #19058, #19064, #19066 (incl. #19082), #19485, merged | `kubevirt-*` lane builds upstream `main`; round trips only pass on that lane | Released: the round trips pass on the `cluster-*` lane too, drop the notes saying they only pass on `kubevirt-*` |
 | enhancements #464 (persistent state, relaxed validation) | Strict validation: every PVC volume needs a disk layer and every layer a volume, only `disk.raw+zstd` layers | Merged: allow PVC volumes without layer (left untouched), skip one persistent state layer, update the fixtures |
 | OCI constants | Copied from KubeVirt's unexported `pkg/storage/oci` into `internal/artifact/constants.go` | Exported upstream (e.g. in `kubevirt.io/api`): import them |
 | kubecli and Kubernetes 0.37 | `internal/virtimportctl/kubecli` stand-in, generated clientsets in `tests/` | kubecli supports 0.37: use it, delete the stand-in |

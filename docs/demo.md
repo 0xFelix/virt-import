@@ -16,12 +16,12 @@ must show up in the imported VM.
 ## 1. Start the cluster
 
 ```shell
-make kubevirt-up    # kubevirtci, KubeVirt and CDI built from source, cert-manager
+make kubevirt-up    # kubevirtci, KubeVirt built from source, a CDI nightly, cert-manager
 make kubevirt-sync  # build and deploy virt-import
 make build          # bin/virtimportctl
 ```
 
-The first `kubevirt-up` builds KubeVirt and CDI and takes a while. Set up the shell for the next
+The first `kubevirt-up` builds KubeVirt and takes a while. Set up the shell for the next
 steps:
 
 ```shell
