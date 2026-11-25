@@ -215,7 +215,9 @@ type DataVolumeSourceRegistry struct {
 	//Platform describes the minimum runtime requirements of the image
 	// +optional
 	Platform *PlatformOptions `json:"platform,omitempty"`
-	//Layer selects a single OCI artifact layer to import as the disk image, not supported with the node pull method
+	//Layer selects a single OCI artifact layer to import as the disk image, not supported with the node pull method.
+	//Only KubeVirt artifacts are currently supported, of artifact type application/vnd.kubevirt.virtualmachine.v1
+	//or application/vnd.kubevirt.virtualmachinetemplate.v1
 	// +optional
 	Layer *LayerSelector `json:"layer,omitempty"`
 }
@@ -1094,10 +1096,6 @@ type CDIConfigSpec struct {
 	Preallocation *bool `json:"preallocation,omitempty"`
 	// InsecureRegistries is a list of TLS disabled registries
 	InsecureRegistries []string `json:"insecureRegistries,omitempty"`
-	// DataVolumeTTLSeconds is the time in seconds after DataVolume completion it can be garbage collected. Disabled by default.
-	// Deprecated: Removed in v1.62.
-	// +optional
-	DataVolumeTTLSeconds *int32 `json:"dataVolumeTTLSeconds,omitempty"`
 	// TLSSecurityProfile is used by operators to apply cluster-wide TLS security settings to operands.
 	TLSSecurityProfile *TLSSecurityProfile `json:"tlsSecurityProfile,omitempty"`
 	// The imagePullSecrets used to pull the container images

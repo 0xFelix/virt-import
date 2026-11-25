@@ -53,7 +53,7 @@ all-or-nothing; if any step fails, no target is created.
   released yet). Exports from earlier KubeVirt versions cannot be imported.
 - CDI with layer selection for registry DataVolumes
   ([kubevirt/containerized-data-importer#4301](https://github.com/kubevirt/containerized-data-importer/pull/4301),
-  not released yet). With an older CDI, imports fail with "the installed CDI does not support layer
+  in nightlies since 20261125, not released yet). With an older CDI, imports fail with "the installed CDI does not support layer
   selection for DataVolume registry sources".
 - [kubevirt/virt-template](https://github.com/kubevirt/virt-template), only if you import
   `VirtualMachineTemplate` artifacts
