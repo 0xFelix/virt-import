@@ -115,7 +115,7 @@ func (DataVolumeSourceRegistry) SwaggerDoc() map[string]string {
 		"secretRef":     "SecretRef provides the secret reference needed to access the Registry source\n+optional",
 		"certConfigMap": "CertConfigMap provides a reference to the Registry certs\n+optional",
 		"platform":      "Platform describes the minimum runtime requirements of the image\n+optional",
-		"layer":         "Layer selects a single OCI artifact layer to import as the disk image, not supported with the node pull method\n+optional",
+		"layer":         "Layer selects a single OCI artifact layer to import as the disk image, not supported with the node pull method.\nOnly KubeVirt artifacts are currently supported, of artifact type application/vnd.kubevirt.virtualmachine.v1\nor application/vnd.kubevirt.virtualmachinetemplate.v1\n+optional",
 	}
 }
 
@@ -546,7 +546,6 @@ func (CDIConfigSpec) SwaggerDoc() map[string]string {
 		"filesystemOverhead":       "FilesystemOverhead describes the space reserved for overhead when using Filesystem volumes. A value is between 0 and 1, if not defined it is 0.06 (6% overhead)",
 		"preallocation":            "Preallocation controls whether storage for DataVolumes should be allocated in advance.",
 		"insecureRegistries":       "InsecureRegistries is a list of TLS disabled registries",
-		"dataVolumeTTLSeconds":     "DataVolumeTTLSeconds is the time in seconds after DataVolume completion it can be garbage collected. Disabled by default.\nDeprecated: Removed in v1.62.\n+optional",
 		"tlsSecurityProfile":       "TLSSecurityProfile is used by operators to apply cluster-wide TLS security settings to operands.",
 		"imagePullSecrets":         "The imagePullSecrets used to pull the container images",
 		"logVerbosity":             "LogVerbosity overrides the default verbosity level used to initialize loggers\n+optional",

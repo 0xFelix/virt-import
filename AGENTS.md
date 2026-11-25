@@ -71,11 +71,11 @@ RBAC marker on the reconciler, and in the admission policy. Do not "fix" those t
 
 ### Temporary CDI API
 
-DataVolume layer selection (`spec.source.registry.layer`) comes from the unmerged
-[CDI #4301](https://github.com/kubevirt/containerized-data-importer/pull/4301). Until a CDI release
-contains it, `go.mod` replaces `kubevirt.io/containerized-data-importer-api` with that PR's commit on
-the author's fork, and the Makefile's `CDI_VERSION=source` default deploys CDI built from the same
-commit. Re-pin both together and refresh the envtest CRDs with `make cluster-envtest-crds` or
+DataVolume layer selection (`spec.source.registry.layer`) comes from
+[CDI #4301](https://github.com/kubevirt/containerized-data-importer/pull/4301), merged but not
+released. Until a CDI release contains it, `go.mod` replaces `kubevirt.io/containerized-data-importer-api`
+with its merge commit, and the Makefile's `CDI_VERSION` default deploys the CDI nightly built from
+the same commit. Re-pin both together and refresh the envtest CRDs with `make cluster-envtest-crds` or
 `make kubevirt-envtest-crds`; once released, drop the `replace` and the CDI defaults and bump to
 the release tag.
 
@@ -215,9 +215,9 @@ CDI_VERSION=nightly  make cluster-up   # the most recent nightly
 CDI_VERSION=source   make cluster-up   # built from CDI_REPO at CDI_REF, pushed to the cluster registry
 ```
 
-**Temporary defaults.** The Makefile defaults to `CDI_VERSION=source` with `CDI_REPO`/`CDI_REF` on
-the CDI #4301 commit `go.mod` replaces the CDI API with. Re-pin `CDI_REF` together with the
-`go.mod` replace; drop the defaults once #4301 is released.
+**Temporary default.** The Makefile defaults `CDI_VERSION` to the nightly built from the CDI commit
+`go.mod` replaces the CDI API with. Re-pin it together with the `go.mod` replace; drop the default
+once #4301 is released.
 
 `hack/cdi.sh` resolves the value to a manifest base (failing before cluster-up if it is
 unusable; for `source` the manifests CDI's `make manifests` renders into `_out/cdi-src`), turns off `KUBEVIRT_DEPLOY_CDI` so kubevirtci does not install a CDI we are about to
@@ -290,9 +290,8 @@ Each item below works around something unmerged or unreleased. Resolve it when i
 
 | Item | Workaround | Trigger and action |
 |---|---|---|
-| CDI #4301 (layer selection) | `go.mod` `replace` of the CDI API to the PR commit, `CDI_VERSION=source` default deploys CDI built from it (see "Temporary CDI API") | CDI release: drop the `replace` and the CDI defaults, bump to the tag, refresh the envtest CRDs with `make cluster-envtest-crds`, name the minimum CDI version in README.md |
-| CDI in e2e | Makefile defaults `CDI_VERSION=source`, `CDI_REPO`/`CDI_REF` on the same commit as the `replace` | Nightly with #4301: `CDI_VERSION=nightly`; release: pin the tag and drop `CDI_REPO`/`CDI_REF` defaults |
-| KubeVirt export PRs #19058, #19064, #19066 (incl. #19082), #19485, merged | `kubevirt-*` lane builds upstream `main`; round trips only pass on that lane | Released: the round trips pass on the `cluster-*` lane too, drop the notes saying they only pass on `kubevirt-*` |
+| CDI #4301 (layer selection) | `go.mod` `replace` of the CDI API to the merge commit, `CDI_VERSION` default deploys the nightly built from it (see "Temporary CDI API") | CDI release: drop the `replace` and the CDI defaults, bump to the tag, refresh the envtest CRDs with `make cluster-envtest-crds`, name the minimum CDI version in README.md |
+| CDI in e2e | Makefile defaults `CDI_VERSION` to the nightly of the `replace` commit | Release: pin the tag |
 | enhancements #464 (persistent state, relaxed validation) | Strict validation: every PVC volume needs a disk layer and every layer a volume, only `disk.raw+zstd` layers | Merged: allow PVC volumes without layer (left untouched), skip one persistent state layer, update the fixtures |
 | OCI constants | Copied from KubeVirt's unexported `pkg/storage/oci` into `internal/artifact/constants.go` | Exported upstream (e.g. in `kubevirt.io/api`): import them |
 | kubecli and Kubernetes 0.37 | `internal/virtimportctl/kubecli` stand-in, generated clientsets in `tests/` | kubecli supports 0.37: use it, delete the stand-in |

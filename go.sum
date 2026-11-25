@@ -294,8 +294,6 @@ git.sr.ht/~sbinet/gg v0.3.1/go.mod h1:KGYtlADtqsqANL9ueOFkWymvzUvLMQllU5Ixo+8v3p
 git.sr.ht/~sbinet/gg v0.5.0/go.mod h1:G2C0eRESqlKhS7ErsNey6HHrqU1PwsnCQlekFi9Q2Oo=
 git.sr.ht/~sbinet/gg v0.6.0/go.mod h1:uucygbfC9wVPQIfrmwM2et0imr8L7KQWywX0xpFMm94=
 git.wow.st/gmp/jni v0.0.0-20210610011705-34026c7e22d0/go.mod h1:+axXBRUTIDlCeE73IKeD/os7LoEnTKdkp8/gQOFjqyo=
-github.com/Acedus/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261001133435-defc3b3d6c7f h1:mz8fkAHaaEKLrfiQonFnVQULxdPKc7XtFYpjtuFLSLQ=
-github.com/Acedus/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261001133435-defc3b3d6c7f/go.mod h1:AqqZZCqWGpIbz5uViAivktJ6/YOp3VUiUDqs9kq8gls=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
@@ -1003,6 +1001,8 @@ github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
+github.com/kubevirt/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261124191345-4e4a6e35db16 h1:ue/yseBiwdt/NWlvaRWy2FxawxVODHZJtZT4+OTsnG8=
+github.com/kubevirt/containerized-data-importer/staging/src/kubevirt.io/containerized-data-importer-api v0.0.0-20261124191345-4e4a6e35db16/go.mod h1:3Zu5oDneZbUDugoFpR4YhlnRzgrYluOp1vz2o/KvC7s=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=

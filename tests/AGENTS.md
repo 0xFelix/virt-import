@@ -26,9 +26,8 @@ virt-import deployed.
   `registry:5000/virt-import-functest:latest`), built from `tests/image/Dockerfile` and pushed by
   `cluster-sync` / `kubevirt-sync`. Do not pull test images from outside the cluster registry; add
   missing tools to `tests/image/Dockerfile` instead
-- Specs labeled `KubeVirtExport` export with KubeVirt's OCI export and need a KubeVirt that
-  annotates disk layers with the volume name; until a release does, they only pass on the
-  `kubevirt-*` lane
+- Specs labeled `KubeVirtExport` export with KubeVirt's OCI export and need KubeVirt v1.10 or
+  later, which annotates disk layers with the volume name
 - VMs are created from imported `VirtualMachineTemplate`s through virt-template's `create` and
   `process` subresources (`processTemplate`). Creating one in another namespace clones across
   namespaces and needs `allowCloneFrom`; it is the only spec proving the DataVolumeTemplate

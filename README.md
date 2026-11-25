@@ -9,7 +9,7 @@ round trip started by [VEP #256](https://github.com/kubevirt/enhancements/pull/2
 export a VM on one cluster, push it to a registry, import it on another.
 
 > **Status: alpha.** The import pipeline, the functional tests and the `virtimportctl` CLI are
-> implemented. virt-import depends on CDI and KubeVirt changes that are not released yet, see
+> implemented. virt-import depends on a CDI change that is not released yet, see
 > [Requirements](#requirements). Targeting KubeVirt v1.10.
 
 To try it out on a local cluster, follow the [demo](docs/demo.md): it exports a VM with two disks,
@@ -47,14 +47,13 @@ all-or-nothing; if any step fails, no target is created.
 
 ## Requirements
 
-- KubeVirt. Artifacts must name each disk layer after its VM volume (`io.kubevirt.disk.name`), which
-  KubeVirt's OCI export does since
-  [kubevirt/kubevirt#19066](https://github.com/kubevirt/kubevirt/pull/19066) (in `main`, not
-  released yet). Exports from earlier KubeVirt versions cannot be imported.
+- KubeVirt v1.10 or later. Artifacts must name each disk layer after its VM volume
+  (`io.kubevirt.disk.name`), which KubeVirt's OCI export does since v1.10. Exports from earlier
+  KubeVirt versions cannot be imported.
 - CDI with layer selection for registry DataVolumes
   ([kubevirt/containerized-data-importer#4301](https://github.com/kubevirt/containerized-data-importer/pull/4301),
-  not released yet). With an older CDI, imports fail with "the installed CDI does not support layer
-  selection for DataVolume registry sources".
+  in nightlies since 20261125, not released yet). With an older CDI, imports fail with "the
+  installed CDI does not support layer selection for DataVolume registry sources".
 - [kubevirt/virt-template](https://github.com/kubevirt/virt-template), only if you import
   `VirtualMachineTemplate` artifacts
 - cert-manager, for the standalone install
@@ -256,8 +255,7 @@ built from `KUBEVIRT_TAG` (a branch or tag, `main` by default). The checkout in 
 reused; remove it after `make kubevirt-down` to build another tag or newer commits of `main`. Likewise, remove `_cluster-up` after `make cluster-down` to move to a newer KubeVirt release.
 
 Both lanes enable KubeVirt's OCI export for the round-trip tests, which export a VM and a template
-and import them again. They need KubeVirt changes that are in `main` but not released yet, so for
-now they only pass on the `kubevirt-*` lane.
+and import them again.
 
 `CDI_VERSION` picks the CDI to install - a release tag (`v1.65.0`), a nightly date (`20260903`),
 `nightly` for the most recent one, or `source` to build it from `CDI_REPO` at `CDI_REF`:
