@@ -252,7 +252,7 @@ cluster reaches it) and `-test-image` (the helper image built from `tests/image/
 `FUNCTEST_EXTRA_ARGS`.
 
 `kubevirt-up`, `kubevirt-sync`, `kubevirt-functest` and `kubevirt-down` do the same with KubeVirt
-built from `KUBEVIRT_TAG` (a branch or tag, `main` by default). The checkout in `_kubevirt` is
+built from `KUBEVIRT_TAG` (a branch or tag, `release-1.10` by default). The checkout in `_kubevirt` is
 reused; remove it after `make kubevirt-down` to build another tag or newer commits of `main`. Likewise, remove `_cluster-up` after `make cluster-down` to move to a newer KubeVirt release.
 
 Both lanes enable KubeVirt's OCI export for the round-trip tests, which export a VM and a template

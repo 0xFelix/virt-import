@@ -195,7 +195,7 @@ otherwise their finalizers would block the deletion of the CRD.
 existing `_cluster-up` is reused as it is; remove it after `cluster-down` to move to a newer release.
 
 `kubevirt-up` / `-sync` / `-functest` / `-down` do the same against KubeVirt built from git:
-`KUBEVIRT_TAG` (a branch or tag, `main` by default), cloned into `_kubevirt`. An existing
+`KUBEVIRT_TAG` (a branch or tag, `release-1.10` by default), cloned into `_kubevirt`. An existing
 `_kubevirt` is reused as it is; remove it after `kubevirt-down` to switch or pick up new commits.
 Both `up` paths enable the `OCIExport` feature gate for the functional tests importing KubeVirt
 exports.
