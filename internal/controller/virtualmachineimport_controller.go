@@ -70,6 +70,9 @@ const (
 
 	capabilityAll = "ALL"
 
+	requiredSCCAnnotation = "openshift.io/required-scc"
+	requiredSCC           = "restricted-v2"
+
 	FetcherContainerName = "fetcher"
 	fetchJobSuffix       = "fetch"
 	fetchJobBackoffLimit = 3
@@ -1158,7 +1161,11 @@ func newFetchJob(vmImport *v1alpha1.VirtualMachineImport, image string, insecure
 			},
 		}},
 		Template: corev1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{Labels: labels},
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: labels,
+				// Pin the SCC on OpenShift, so a more privileged one is never picked.
+				Annotations: map[string]string{requiredSCCAnnotation: requiredSCC},
+			},
 			Spec: corev1.PodSpec{
 				RestartPolicy:                corev1.RestartPolicyNever,
 				AutomountServiceAccountToken: ptr.To(false),

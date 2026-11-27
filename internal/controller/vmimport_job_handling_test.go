@@ -86,6 +86,7 @@ var _ = Describe("VirtualMachineImport controller metadata-fetch Job handling", 
 
 		podSpec := job.Spec.Template.Spec
 		Expect(job.Spec.Template.Labels).To(HaveKeyWithValue(v1alpha1.LabelImportUID, string(vmImport.UID)))
+		Expect(job.Spec.Template.Annotations).To(HaveKeyWithValue("openshift.io/required-scc", "restricted-v2"))
 		Expect(podSpec.RestartPolicy).To(Equal(corev1.RestartPolicyNever))
 		Expect(podSpec.AutomountServiceAccountToken).To(HaveValue(BeFalse()))
 		Expect(podSpec.Containers).To(HaveLen(1))
