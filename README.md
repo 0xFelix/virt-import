@@ -267,6 +267,28 @@ $ CDI_VERSION=nightly make cluster-up
 Until the CDI change listed under [Requirements](#requirements) is released, the Makefile defaults
 to building CDI from source at the commit virt-import is built against.
 
+### Dependency updates
+
+Renovate runs daily at 06:00 UTC and can also be started from the Actions tab. It proposes routine
+and security dependency updates on `main`; on `release-X.Y` branches, it proposes security updates
+only. It updates Go modules and GitHub Actions, including the pinned tools in `tools/go.mod`.
+Routine Go updates may include Kubernetes, OpenTelemetry, and indirect modules; incompatible
+proposals need manual fixes.
+
+Each Renovate branch runs `make vendor`, `make fmt`, `make generate`, `make manifests`, then
+`make vendor` again before its PR is created. The first vendor pass refreshes `tools/vendor` before
+the generated code invokes a vendored Go tool; the final pass captures dependency changes from
+generation.
+
+Renovate does not update the `go` directive in `go.work`. When a PR raises a module's minimum Go
+version, update `go.work` manually and check that the build and release environments support it.
+
+To enable the workflow, install the Renovate GitHub App on this repository with `contents:write`,
+`pull-requests:write`, `issues:write`, `workflows:write`, and `dependabot-alerts:read` permissions.
+Configure its ID and private key as the `RENOVATE_APP_ID` and `RENOVATE_APP_PRIVATE_KEY` Actions
+secrets. Set the `RENOVATE_BOT_LOGIN` repository variable to the installed App's bot login so the
+Go version report runs only for its PRs.
+
 ## Community
 
 virt-import is part of the [KubeVirt](https://kubevirt.io) project, developed by SIG-compute.
