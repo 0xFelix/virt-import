@@ -312,6 +312,6 @@ output contract, cleanup timing, DataVolumes owned by the target); the code is a
   `tests/image/Dockerfile` builds `virt-import-functest`, the helper Pod image of the functional
   tests; only `cluster-sync` / `kubevirt-sync` build it and push it to the kubevirtci registry, it
   is never released or pushed elsewhere
-- Multi-arch: linux/amd64, linux/arm64, linux/s390x
+- Multi-arch: linux/amd64, linux/arm64, linux/s390x, linux/ppc64le
 - Generated client code lives in `staging/`
 - Logging levels: `V(1)` for debug, `V(2)` for trace
