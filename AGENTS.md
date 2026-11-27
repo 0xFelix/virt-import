@@ -3,10 +3,18 @@
 ## Strict Rules
 
 - Never modify generated files by hand - use `make generate`, `make manifests`, and `make vendor`
+- Never hand-edit generated manifests under `config/` (CRDs, RBAC) - regenerate with `make manifests`
+  instead
 - Never remove or modify Apache 2.0 license headers (see `hack/boilerplate.go.txt`)
 - Never bypass linting or skip `make all` before pushing
 - Never commit vendor changes without running `make vendor`
 - Never modify CRD type definitions without running `make generate` and `make manifests` afterward
+- Treat changes to `VirtualMachineImport` fields in `api/core/` as potentially breaking the API - all
+  exported fields require kubebuilder validation markers and godoc comments
+
+Several directories also carry their own nested `AGENTS.md` with directory-specific conventions (see
+"Key directories" below) - read the closest one for the file(s) you're touching, in addition to this
+file.
 
 ## Project Overview
 
@@ -45,11 +53,11 @@ job runs for `main` and `hack/release.sh` runs for release tags.
 ### Key directories
 
 ```
-api/core/v1alpha1/          VirtualMachineImport types (import.kubevirt.io/v1alpha1)
+api/core/v1alpha1/          VirtualMachineImport types (import.kubevirt.io/v1alpha1) - see api/core/AGENTS.md
 cmd/main.go                 controller manager entrypoint
 cmd/fetcher/                metadata-fetch Job entrypoint, prints one {"fetchResult":...} line on stdout
 cmd/virtimportctl/          the virtimportctl CLI (create)
-internal/controller/        reconciler + CRD availability gating
+internal/controller/        reconciler + CRD availability gating - see internal/controller/AGENTS.md
 internal/artifact/          OCI artifact format (VEP #256): validation, platform selection, fetch result, config rewrite, fetcher flags and exit codes
   artifacttest/             builds VEP #256 artifacts and the fixtures for tests
 internal/fetcher/           reads and validates artifact metadata with containers/image (go.podman.io/image/v5)
@@ -57,8 +65,8 @@ internal/virtimportctl/     virtimportctl, built from virtctl's modules (see bel
 internal/scheme/            runtime scheme registration
 internal/apimachinery/      GetStableName, DNS-1035-safe deterministic child names
 internal/logs/              log level constants
-config/                     Kustomize manifests, two overlays
-tests/                      functional tests (need KUBECONFIG)
+config/                     Kustomize manifests, two overlays - see config/AGENTS.md
+tests/                      functional tests (need KUBECONFIG) - see tests/AGENTS.md
 ```
 
 ### Dependency on virt-template
@@ -224,6 +232,17 @@ unusable; for `source` the manifests CDI's `make manifests` renders into `_out/c
 replace, applies `cdi-operator.yaml` and `cdi-cr.yaml`, and waits for the CDI CR. It also owns
 the `insecureRegistries: [registry:5000]` patch for both paths - KubeVirt's `cluster-deploy.sh`
 applies that patch only when it deploys CDI itself.
+
+## Linting
+
+Run `make lint` to execute all linters:
+
+- **golangci-lint** (version in `tools/go.mod`) with `.golangci.yml` - line length 140, cyclomatic
+  complexity 15, function length 100 lines / 50 statements
+- **hack/lint.sh** - runs `yamllint` on `config/` and `shellcheck` on `hack/*.sh` (both must be
+  installed on the host)
+- **hack/license-header-check.sh** - Apache 2.0 header (see `hack/boilerplate.go.txt`)
+- **gofumpt** - formatting (stricter than gofmt)
 
 ## Testing
 
